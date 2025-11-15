@@ -20,7 +20,7 @@ const int GRID_WIDTH = WINDOW_WIDTH / GRID_SIZE;
 const int GRID_HEIGHT = WINDOW_HEIGHT / GRID_SIZE;
 
 enum Direction { UP, DOWN, LEFT, RIGHT };
-enum GameState { MAIN_MENU, PLAYING, GAME_OVER, LEADERBOARD, SETTINGS, LEVEL_TRANSITION };
+enum GameState { MAIN_MENU, PLAYING, GAME_OVER, LEADERBOARD, SETTINGS, LEVEL_TRANSITION, PAUSED };
 enum GameMode { LEVEL_1, LEVEL_2, LEVEL_3, FREE_PLAY };
 
 struct SnakeSegment {
@@ -43,12 +43,15 @@ private:
     Font font;
     
     // Background textures
-    Texture menuBgTexture, level1BgTexture, level2BgTexture, level3BgTexture, transitionBgTexture;
-    Sprite menuBg, level1Bg, level2Bg, level3Bg, transitionBg;
+    Texture menuBgTexture, level1BgTexture, level2BgTexture, level3BgTexture, transitionBgTexture, pauseBgTexture;
+    Sprite menuBg, level1Bg, level2Bg, level3Bg, transitionBg, pauseBg;
     
     // Transition
     Clock transitionClock;
     int nextLevel;
+    
+    // Pause
+    GameState previousState;
     
     // Game state
     GameState state;
@@ -115,18 +118,21 @@ public:
         level2BgTexture.loadFromFile("level2_bg.png");
         level3BgTexture.loadFromFile("level3_bg.png");
         transitionBgTexture.loadFromFile("transition_bg.png");
+        pauseBgTexture.loadFromFile("pause_bg.png");
         
         menuBg.setTexture(menuBgTexture);
         level1Bg.setTexture(level1BgTexture);
         level2Bg.setTexture(level2BgTexture);
         level3Bg.setTexture(level3BgTexture);
         transitionBg.setTexture(transitionBgTexture);
+        pauseBg.setTexture(pauseBgTexture);
         
         soundEnabled = true;
         state = MAIN_MENU;
         currentLevel = 1;
         enteringName = false;
         leaderboardTab = 0;
+        previousState = MAIN_MENU;
         
         loadLeaderboard();
         initAudio();
@@ -302,11 +308,21 @@ public:
                 handleMenuInput(event);
             } else if (state == PLAYING) {
                 handleGameInput(event);
+            } else if (state == PAUSED) {
+                // Resume on any key press or mouse click
+                if (event.type == Event::KeyPressed || event.type == Event::MouseButtonPressed) {
+                    state = previousState;
+                }
             } else if (state == GAME_OVER && enteringName) {
                 handleNameInput(event);
             } else if (state == LEVEL_TRANSITION) {
-                // Skip transition on key press
-                if (event.type == Event::KeyPressed || event.type == Event::MouseButtonPressed) {
+                // Skip transition on key press (but not ESC to prevent accidental skips)
+                if (event.type == Event::KeyPressed && event.key.code != Keyboard::Escape) {
+                    currentLevel = nextLevel;
+                    resetLevel();
+                    state = PLAYING;
+                    playBgMusic();
+                } else if (event.type == Event::MouseButtonPressed) {
                     currentLevel = nextLevel;
                     resetLevel();
                     state = PLAYING;
@@ -387,11 +403,9 @@ public:
                 nextDirection = LEFT;
             } else if ((event.key.code == Keyboard::Right || event.key.code == Keyboard::D) && direction != LEFT) {
                 nextDirection = RIGHT;
-            } else if (event.key.code == Keyboard::Escape) {
-                state = MAIN_MENU;
-                bgMusic1.stop();
-                bgMusic2.stop();
-                bgMusic3.stop();
+            } else if (event.key.code == Keyboard::Escape || event.key.code == Keyboard::P) {
+                previousState = PLAYING;
+                state = PAUSED;
             }
         }
     }
@@ -420,6 +434,11 @@ public:
     }
     
     void update() {
+        // Don't update if paused
+        if (state == PAUSED) {
+            return;
+        }
+        
         if (state == LEVEL_TRANSITION) {
             // Auto advance after 3 seconds
             if (transitionClock.getElapsedTime().asSeconds() >= 3.0f) {
@@ -619,8 +638,11 @@ public:
         
         if (state == MAIN_MENU) {
             renderMainMenu();
-        } else if (state == PLAYING) {
+        } else if (state == PLAYING || state == PAUSED) {
             renderGame();
+            if (state == PAUSED) {
+                renderPauseOverlay();
+            }
         } else if (state == LEVEL_TRANSITION) {
             renderLevelTransition();
         } else if (state == GAME_OVER) {
@@ -800,6 +822,39 @@ public:
         hint.setFillColor(Color(150, 150, 150));
         hint.setPosition(WINDOW_WIDTH / 2 - 120, 450);
         window.draw(hint);
+    }
+    
+    void renderPauseOverlay() {
+        // Draw semi-transparent overlay
+        RectangleShape overlay(Vector2f(WINDOW_WIDTH, WINDOW_HEIGHT));
+        overlay.setFillColor(Color(0, 0, 0, 180));
+        window.draw(overlay);
+        
+        // Draw pause background if available
+        if (pauseBgTexture.getSize().x > 0) {
+            pauseBg.setColor(Color(255, 255, 255, 200));
+            window.draw(pauseBg);
+        }
+        
+        Text title("GAME PAUSED", font, 60);
+        title.setFillColor(Color::Yellow);
+        title.setPosition(WINDOW_WIDTH / 2 - 180, 200);
+        window.draw(title);
+        
+        Text hint("Press any key to continue", font, 25);
+        hint.setFillColor(Color::White);
+        hint.setPosition(WINDOW_WIDTH / 2 - 150, 320);
+        window.draw(hint);
+        
+        Text controls("Controls: Arrow Keys or WASD", font, 20);
+        controls.setFillColor(Color(200, 200, 200));
+        controls.setPosition(WINDOW_WIDTH / 2 - 140, 400);
+        window.draw(controls);
+        
+        Text pauseKey("Pause: ESC or P", font, 20);
+        pauseKey.setFillColor(Color(200, 200, 200));
+        pauseKey.setPosition(WINDOW_WIDTH / 2 - 80, 430);
+        window.draw(pauseKey);
     }
     
     void renderGameOver() {
