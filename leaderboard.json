@@ -1,6 +1,22 @@
-[
-    {
-        "name": "Zahin",
-        "score": 0
-    }
-]
+{
+    "freeplay": [
+        {
+            "name": "zahin",
+            "score": 52
+        }
+    ],
+    "normal": [
+        {
+            "name": "zahin",
+            "score": 48
+        },
+        {
+            "name": "zahin",
+            "score": 20
+        },
+        {
+            "name": "zahin",
+            "score": 8
+        }
+    ]
+}

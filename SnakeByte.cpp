@@ -20,7 +20,7 @@ const int GRID_WIDTH = WINDOW_WIDTH / GRID_SIZE;
 const int GRID_HEIGHT = WINDOW_HEIGHT / GRID_SIZE;
 
 enum Direction { UP, DOWN, LEFT, RIGHT };
-enum GameState { MAIN_MENU, PLAYING, GAME_OVER, LEADERBOARD, SETTINGS };
+enum GameState { MAIN_MENU, PLAYING, GAME_OVER, LEADERBOARD, SETTINGS, LEVEL_TRANSITION };
 enum GameMode { LEVEL_1, LEVEL_2, LEVEL_3, FREE_PLAY };
 
 struct SnakeSegment {
@@ -43,8 +43,12 @@ private:
     Font font;
     
     // Background textures
-    Texture menuBgTexture, level1BgTexture, level2BgTexture, level3BgTexture;
-    Sprite menuBg, level1Bg, level2Bg, level3Bg;
+    Texture menuBgTexture, level1BgTexture, level2BgTexture, level3BgTexture, transitionBgTexture;
+    Sprite menuBg, level1Bg, level2Bg, level3Bg, transitionBg;
+    
+    // Transition
+    Clock transitionClock;
+    int nextLevel;
     
     // Game state
     GameState state;
@@ -87,8 +91,10 @@ private:
     
     // Leaderboard
     std::vector<std::pair<std::string, int>> leaderboard;
+    std::vector<std::pair<std::string, int>> freePlayLeaderboard;
     std::string playerName;
     bool enteringName;
+    int leaderboardTab; // 0 = normal, 1 = free play
     
     // Level targets
     int levelTarget;
@@ -108,16 +114,19 @@ public:
         level1BgTexture.loadFromFile("level1_bg.png");
         level2BgTexture.loadFromFile("level2_bg.png");
         level3BgTexture.loadFromFile("level3_bg.png");
+        transitionBgTexture.loadFromFile("transition_bg.png");
         
         menuBg.setTexture(menuBgTexture);
         level1Bg.setTexture(level1BgTexture);
         level2Bg.setTexture(level2BgTexture);
         level3Bg.setTexture(level3BgTexture);
+        transitionBg.setTexture(transitionBgTexture);
         
         soundEnabled = true;
         state = MAIN_MENU;
         currentLevel = 1;
         enteringName = false;
+        leaderboardTab = 0;
         
         loadLeaderboard();
         initAudio();
@@ -295,10 +304,37 @@ public:
                 handleGameInput(event);
             } else if (state == GAME_OVER && enteringName) {
                 handleNameInput(event);
+            } else if (state == LEVEL_TRANSITION) {
+                // Skip transition on key press
+                if (event.type == Event::KeyPressed || event.type == Event::MouseButtonPressed) {
+                    currentLevel = nextLevel;
+                    resetLevel();
+                    state = PLAYING;
+                    playBgMusic();
+                }
             } else if (state == GAME_OVER || state == LEADERBOARD || state == SETTINGS) {
                 if (event.type == Event::KeyPressed) {
                     if (event.key.code == Keyboard::Escape || event.key.code == Keyboard::BackSpace) {
                         state = MAIN_MENU;
+                    }
+                    // Tab switching in leaderboard
+                    if (state == LEADERBOARD) {
+                        if (event.key.code == Keyboard::Num1 || event.key.code == Keyboard::Left) {
+                            leaderboardTab = 0;
+                        } else if (event.key.code == Keyboard::Num2 || event.key.code == Keyboard::Right) {
+                            leaderboardTab = 1;
+                        }
+                    }
+                }
+                // Mouse clicks for leaderboard tabs
+                if (state == LEADERBOARD && event.type == Event::MouseButtonPressed) {
+                    Vector2i mousePos = Mouse::getPosition(window);
+                    if (mousePos.y >= 120 && mousePos.y <= 160) {
+                        if (mousePos.x >= 200 && mousePos.x <= 350) {
+                            leaderboardTab = 0;
+                        } else if (mousePos.x >= 450 && mousePos.x <= 600) {
+                            leaderboardTab = 1;
+                        }
                     }
                 }
             }
@@ -368,7 +404,11 @@ public:
                 }
             } else if (event.text.unicode == 13) { // Enter
                 if (!playerName.empty()) {
-                    addToLeaderboard(playerName, score);
+                    if (mode == FREE_PLAY) {
+                        addToLeaderboard(playerName, score, true);
+                    } else {
+                        addToLeaderboard(playerName, score, false);
+                    }
                     saveLeaderboard();
                     enteringName = false;
                     state = LEADERBOARD;
@@ -380,6 +420,17 @@ public:
     }
     
     void update() {
+        if (state == LEVEL_TRANSITION) {
+            // Auto advance after 3 seconds
+            if (transitionClock.getElapsedTime().asSeconds() >= 3.0f) {
+                currentLevel = nextLevel;
+                resetLevel();
+                state = PLAYING;
+                playBgMusic();
+            }
+            return;
+        }
+        
         if (state != PLAYING) return;
         
         float elapsed = gameClock.getElapsedTime().asSeconds();
@@ -533,9 +584,9 @@ public:
         }
         
         if (currentLevel < 3) {
-            currentLevel++;
-            resetLevel();
-            playBgMusic();
+            nextLevel = currentLevel + 1;
+            state = LEVEL_TRANSITION;
+            transitionClock.restart();
         } else {
             // Game won!
             gameOver();
@@ -551,8 +602,11 @@ public:
         bgMusic2.stop();
         bgMusic3.stop();
         
+        // Choose correct leaderboard based on mode
+        auto& targetLeaderboard = (mode == FREE_PLAY) ? freePlayLeaderboard : leaderboard;
+        
         // Check if score qualifies for leaderboard (must be > 0)
-        if (score > 0 && (leaderboard.size() < 5 || score > leaderboard.back().second)) {
+        if (score > 0 && (targetLeaderboard.size() < 5 || score > targetLeaderboard.back().second)) {
             enteringName = true;
             playerName = "";
         }
@@ -567,6 +621,8 @@ public:
             renderMainMenu();
         } else if (state == PLAYING) {
             renderGame();
+        } else if (state == LEVEL_TRANSITION) {
+            renderLevelTransition();
         } else if (state == GAME_OVER) {
             renderGameOver();
         } else if (state == LEADERBOARD) {
@@ -664,18 +720,25 @@ public:
             window.draw(rect);
         }
         
-        // Draw normal food
-        RectangleShape foodRect(Vector2f(GRID_SIZE - 4, GRID_SIZE - 4));
-        foodRect.setPosition(food.x * GRID_SIZE + 2, food.y * GRID_SIZE + 2);
-        foodRect.setFillColor(Color::Red);
-        window.draw(foodRect);
+        // Draw normal food (circular)
+        CircleShape foodCircle(GRID_SIZE / 2 - 2);
+        foodCircle.setPosition(food.x * GRID_SIZE + 2, food.y * GRID_SIZE + 2);
+        foodCircle.setFillColor(Color::Red);
+        window.draw(foodCircle);
         
-        // Draw bonus food if active
+        // Draw bonus food if active (circular with pulsing animation)
         if (bonusFoodActive) {
-            RectangleShape bonusFoodRect(Vector2f(GRID_SIZE, GRID_SIZE));
-            bonusFoodRect.setPosition(bonusFood.x * GRID_SIZE, bonusFood.y * GRID_SIZE);
-            bonusFoodRect.setFillColor(Color::Yellow);
-            window.draw(bonusFoodRect);
+            float pulseTime = bonusFoodTimer.getElapsedTime().asSeconds();
+            float scale = 1.0f + 0.2f * sin(pulseTime * 6.0f); // Pulsing effect
+            
+            CircleShape bonusFoodCircle(GRID_SIZE / 2 + 2);
+            bonusFoodCircle.setPosition(bonusFood.x * GRID_SIZE - 2, bonusFood.y * GRID_SIZE - 2);
+            bonusFoodCircle.setScale(scale, scale);
+            bonusFoodCircle.setFillColor(Color::Yellow);
+            bonusFoodCircle.setOrigin(GRID_SIZE / 2 + 2, GRID_SIZE / 2 + 2);
+            bonusFoodCircle.setPosition(bonusFood.x * GRID_SIZE + GRID_SIZE / 2, 
+                                        bonusFood.y * GRID_SIZE + GRID_SIZE / 2);
+            window.draw(bonusFoodCircle);
         }
         
         // Draw snake
@@ -710,6 +773,33 @@ public:
             modeText.setPosition(WINDOW_WIDTH - 120, 10);
             window.draw(modeText);
         }
+    }
+    
+    void renderLevelTransition() {
+        // Draw background if available
+        if (transitionBgTexture.getSize().x > 0) {
+            window.draw(transitionBg);
+        }
+        
+        Text title("LEVEL " + std::to_string(currentLevel) + " COMPLETE!", font, 50);
+        title.setFillColor(Color::Green);
+        title.setPosition(WINDOW_WIDTH / 2 - 250, 150);
+        window.draw(title);
+        
+        Text scoreText("Score: " + std::to_string(score), font, 40);
+        scoreText.setFillColor(Color::White);
+        scoreText.setPosition(WINDOW_WIDTH / 2 - 100, 250);
+        window.draw(scoreText);
+        
+        Text nextText("Advancing to Level " + std::to_string(nextLevel), font, 35);
+        nextText.setFillColor(Color::Yellow);
+        nextText.setPosition(WINDOW_WIDTH / 2 - 180, 350);
+        window.draw(nextText);
+        
+        Text hint("Press any key to continue...", font, 20);
+        hint.setFillColor(Color(150, 150, 150));
+        hint.setPosition(WINDOW_WIDTH / 2 - 120, 450);
+        window.draw(hint);
     }
     
     void renderGameOver() {
@@ -747,19 +837,53 @@ public:
         title.setPosition(WINDOW_WIDTH / 2 - 180, 50);
         window.draw(title);
         
-        for (size_t i = 0; i < leaderboard.size() && i < 5; i++) {
+        // Tab buttons
+        Vector2i mousePos = Mouse::getPosition(window);
+        
+        RectangleShape normalTab(Vector2f(150, 40));
+        normalTab.setPosition(200, 120);
+        normalTab.setFillColor(leaderboardTab == 0 ? Color(0, 150, 0) : Color(50, 50, 50));
+        if (mousePos.x >= 200 && mousePos.x <= 350 && mousePos.y >= 120 && mousePos.y <= 160) {
+            normalTab.setOutlineColor(Color::White);
+            normalTab.setOutlineThickness(2);
+        }
+        window.draw(normalTab);
+        
+        Text normalText("Normal Play", font, 20);
+        normalText.setFillColor(Color::White);
+        normalText.setPosition(220, 130);
+        window.draw(normalText);
+        
+        RectangleShape freeTab(Vector2f(150, 40));
+        freeTab.setPosition(450, 120);
+        freeTab.setFillColor(leaderboardTab == 1 ? Color(0, 150, 0) : Color(50, 50, 50));
+        if (mousePos.x >= 450 && mousePos.x <= 600 && mousePos.y >= 120 && mousePos.y <= 160) {
+            freeTab.setOutlineColor(Color::White);
+            freeTab.setOutlineThickness(2);
+        }
+        window.draw(freeTab);
+        
+        Text freeText("Free Play", font, 20);
+        freeText.setFillColor(Color::White);
+        freeText.setPosition(475, 130);
+        window.draw(freeText);
+        
+        // Display leaderboard based on active tab
+        auto& activeLeaderboard = (leaderboardTab == 0) ? leaderboard : freePlayLeaderboard;
+        
+        for (size_t i = 0; i < activeLeaderboard.size() && i < 5; i++) {
             std::string entry = std::to_string(i + 1) + ". " + 
-                               leaderboard[i].first + " - " + 
-                               std::to_string(leaderboard[i].second);
+                               activeLeaderboard[i].first + " - " + 
+                               std::to_string(activeLeaderboard[i].second);
             Text text(entry, font, 30);
             text.setFillColor(Color::White);
-            text.setPosition(WINDOW_WIDTH / 2 - 150, 150 + i * 60);
+            text.setPosition(WINDOW_WIDTH / 2 - 150, 200 + i * 60);
             window.draw(text);
         }
         
         Text back("Press ESC to return", font, 20);
         back.setFillColor(Color(150, 150, 150));
-        back.setPosition(WINDOW_WIDTH / 2 - 120, 500);
+        back.setPosition(WINDOW_WIDTH / 2 - 120, 520);
         window.draw(back);
     }
     
@@ -802,20 +926,38 @@ public:
                 json j;
                 file >> j;
                 leaderboard.clear();
-                for (auto& entry : j) {
-                    leaderboard.push_back({entry["name"], entry["score"]});
+                freePlayLeaderboard.clear();
+                
+                if (j.contains("normal")) {
+                    for (auto& entry : j["normal"]) {
+                        leaderboard.push_back({entry["name"], entry["score"]});
+                    }
+                }
+                
+                if (j.contains("freeplay")) {
+                    for (auto& entry : j["freeplay"]) {
+                        freePlayLeaderboard.push_back({entry["name"], entry["score"]});
+                    }
                 }
             } catch (...) {
                 leaderboard.clear();
+                freePlayLeaderboard.clear();
             }
             file.close();
         }
     }
     
     void saveLeaderboard() {
-        json j = json::array();
+        json j;
+        j["normal"] = json::array();
+        j["freeplay"] = json::array();
+        
         for (const auto& entry : leaderboard) {
-            j.push_back({{"name", entry.first}, {"score", entry.second}});
+            j["normal"].push_back({{"name", entry.first}, {"score", entry.second}});
+        }
+        
+        for (const auto& entry : freePlayLeaderboard) {
+            j["freeplay"].push_back({{"name", entry.first}, {"score", entry.second}});
         }
         
         std::ofstream file("leaderboard.json");
@@ -825,12 +967,14 @@ public:
         }
     }
     
-    void addToLeaderboard(const std::string& name, int newScore) {
-        leaderboard.push_back({name, newScore});
-        std::sort(leaderboard.begin(), leaderboard.end(), 
+    void addToLeaderboard(const std::string& name, int newScore, bool isFreePlay) {
+        auto& targetLeaderboard = isFreePlay ? freePlayLeaderboard : leaderboard;
+        
+        targetLeaderboard.push_back({name, newScore});
+        std::sort(targetLeaderboard.begin(), targetLeaderboard.end(), 
                  [](const auto& a, const auto& b) { return a.second > b.second; });
-        if (leaderboard.size() > 5) {
-            leaderboard.resize(5);
+        if (targetLeaderboard.size() > 5) {
+            targetLeaderboard.resize(5);
         }
     }
     
