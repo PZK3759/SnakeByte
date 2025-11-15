@@ -112,9 +112,9 @@ public:
             std::cerr << "Font not loaded\n";
         }
         
-        // Load background images (optional - will work without them)
-        menuBgTexture.loadFromFile("menu_bg.png");
-        level1BgTexture.loadFromFile("level1_bg.png");
+        //TODO: add all the image assets
+        menuBgTexture.loadFromFile("assets/images/menu_bg.png");
+        level1BgTexture.loadFromFile("assets/images/level1_bg.png");
         level2BgTexture.loadFromFile("level2_bg.png");
         level3BgTexture.loadFromFile("level3_bg.png");
         transitionBgTexture.loadFromFile("transition_bg.png");
@@ -140,10 +140,11 @@ public:
         bonusFoodSpawnTimer.restart();
     }
     
+    //TODO: add all the audio
     void initAudio() {
         // Note: You'll need to provide actual audio files
         // For now, we'll handle missing files gracefully
-        bgMusic1.openFromFile("music1.ogg");
+        bgMusic1.openFromFile("assets/audios/music1.ogg");
         bgMusic2.openFromFile("music2.ogg");
         bgMusic3.openFromFile("music3.ogg");
         

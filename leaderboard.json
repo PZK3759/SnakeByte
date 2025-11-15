@@ -6,7 +6,15 @@
         },
         {
             "name": "zahin",
+            "score": 36
+        },
+        {
+            "name": "zahin",
             "score": 24
+        },
+        {
+            "name": "zahin",
+            "score": 20
         }
     ],
     "normal": [
@@ -28,7 +36,7 @@
         },
         {
             "name": "zahin",
-            "score": 8
+            "score": 10
         }
     ]
 }
