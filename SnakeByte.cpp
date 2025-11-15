@@ -606,6 +606,11 @@ public:
             nextLevel = currentLevel + 1;
             state = LEVEL_TRANSITION;
             transitionClock.restart();
+            
+            // Stop music during transition
+            bgMusic1.stop();
+            bgMusic2.stop();
+            bgMusic3.stop();
         } else {
             // Game won!
             gameOver();
