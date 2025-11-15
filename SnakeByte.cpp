@@ -42,6 +42,10 @@ private:
     RenderWindow window;
     Font font;
     
+    // Background textures
+    Texture menuBgTexture, level1BgTexture, level2BgTexture, level3BgTexture;
+    Sprite menuBg, level1Bg, level2Bg, level3Bg;
+    
     // Game state
     GameState state;
     GameMode mode;
@@ -54,10 +58,12 @@ private:
     
     // Food
     Food food;
+    Food bonusFood;
     Clock foodTimer;
     bool bonusFoodActive;
     Clock bonusFoodTimer;
     float bonusFoodDuration;
+    Clock bonusFoodSpawnTimer;
     
     // Scoring
     int score;
@@ -97,6 +103,17 @@ public:
             std::cerr << "Font not loaded\n";
         }
         
+        // Load background images (optional - will work without them)
+        menuBgTexture.loadFromFile("menu_bg.png");
+        level1BgTexture.loadFromFile("level1_bg.png");
+        level2BgTexture.loadFromFile("level2_bg.png");
+        level3BgTexture.loadFromFile("level3_bg.png");
+        
+        menuBg.setTexture(menuBgTexture);
+        level1Bg.setTexture(level1BgTexture);
+        level2Bg.setTexture(level2BgTexture);
+        level3Bg.setTexture(level3BgTexture);
+        
         soundEnabled = true;
         state = MAIN_MENU;
         currentLevel = 1;
@@ -104,6 +121,8 @@ public:
         
         loadLeaderboard();
         initAudio();
+        
+        bonusFoodSpawnTimer.restart();
     }
     
     void initAudio() {
@@ -131,6 +150,7 @@ public:
         if (mode != FREE_PLAY) {
             currentLevel = 1;
         }
+        score = 0; // Reset score at game start
         resetLevel();
         state = PLAYING;
         playBgMusic();
@@ -145,12 +165,13 @@ public:
         direction = RIGHT;
         nextDirection = RIGHT;
         
-        score = 0;
+        // Don't reset score between levels
         scoreMultiplier = 1.0f;
         speedMultiplier = 1.0f;
         consecutiveActive = false;
         
         bonusFoodActive = false;
+        bonusFoodSpawnTimer.restart();
         
         obstacles.clear();
         setupLevel();
@@ -161,8 +182,12 @@ public:
         
         if (mode == FREE_PLAY) {
             levelTarget = -1;
+        } else if (currentLevel == 1) {
+            levelTarget = 50;
+        } else if (currentLevel == 2) {
+            levelTarget = 150;
         } else {
-            levelTarget = currentLevel * 10;
+            levelTarget = -1; // Level 3 has no target
         }
     }
     
@@ -213,6 +238,8 @@ public:
         int x, y;
         bool valid;
         
+        Food* targetFood = bonus ? &bonusFood : &food;
+        
         do {
             valid = true;
             x = rand() % GRID_WIDTH;
@@ -233,12 +260,20 @@ public:
                     break;
                 }
             }
+            
+            // Check collision with other food
+            if (bonus && food.x == x && food.y == y) {
+                valid = false;
+            }
+            if (!bonus && bonusFoodActive && bonusFood.x == x && bonusFood.y == y) {
+                valid = false;
+            }
         } while (!valid);
         
-        food.x = x;
-        food.y = y;
-        food.isBonus = bonus;
-        food.spawnTimer.restart();
+        targetFood->x = x;
+        targetFood->y = y;
+        targetFood->isBonus = bonus;
+        targetFood->spawnTimer.restart();
         
         if (bonus) {
             bonusFoodActive = true;
@@ -272,29 +307,49 @@ public:
     
     void handleMenuInput(Event& event) {
         if (event.type == Event::KeyPressed) {
-            if (event.key.code == Keyboard::Num1) {
+            if (event.key.code == Keyboard::Num1 || event.key.code == Keyboard::P) {
                 startGame(LEVEL_1);
-            } else if (event.key.code == Keyboard::Num2) {
+            } else if (event.key.code == Keyboard::Num2 || event.key.code == Keyboard::F) {
                 startGame(FREE_PLAY);
-            } else if (event.key.code == Keyboard::Num3) {
+            } else if (event.key.code == Keyboard::Num3 || event.key.code == Keyboard::L) {
                 state = LEADERBOARD;
-            } else if (event.key.code == Keyboard::Num4) {
+            } else if (event.key.code == Keyboard::Num4 || event.key.code == Keyboard::S) {
                 state = SETTINGS;
-            } else if (event.key.code == Keyboard::Num5 || event.key.code == Keyboard::Escape) {
+            } else if (event.key.code == Keyboard::Num5 || event.key.code == Keyboard::Escape || event.key.code == Keyboard::Q) {
                 window.close();
+            }
+        }
+        
+        // Mouse support
+        if (event.type == Event::MouseButtonPressed) {
+            Vector2i mousePos = Mouse::getPosition(window);
+            
+            // Check menu button clicks (y positions: 220, 280, 340, 400, 460)
+            if (mousePos.x >= 250 && mousePos.x <= 550) {
+                if (mousePos.y >= 220 && mousePos.y <= 260) {
+                    startGame(LEVEL_1);
+                } else if (mousePos.y >= 280 && mousePos.y <= 320) {
+                    startGame(FREE_PLAY);
+                } else if (mousePos.y >= 340 && mousePos.y <= 380) {
+                    state = LEADERBOARD;
+                } else if (mousePos.y >= 400 && mousePos.y <= 440) {
+                    state = SETTINGS;
+                } else if (mousePos.y >= 460 && mousePos.y <= 500) {
+                    window.close();
+                }
             }
         }
     }
     
     void handleGameInput(Event& event) {
         if (event.type == Event::KeyPressed) {
-            if (event.key.code == Keyboard::Up && direction != DOWN) {
+            if ((event.key.code == Keyboard::Up || event.key.code == Keyboard::W) && direction != DOWN) {
                 nextDirection = UP;
-            } else if (event.key.code == Keyboard::Down && direction != UP) {
+            } else if ((event.key.code == Keyboard::Down || event.key.code == Keyboard::S) && direction != UP) {
                 nextDirection = DOWN;
-            } else if (event.key.code == Keyboard::Left && direction != RIGHT) {
+            } else if ((event.key.code == Keyboard::Left || event.key.code == Keyboard::A) && direction != RIGHT) {
                 nextDirection = LEFT;
-            } else if (event.key.code == Keyboard::Right && direction != LEFT) {
+            } else if ((event.key.code == Keyboard::Right || event.key.code == Keyboard::D) && direction != LEFT) {
                 nextDirection = RIGHT;
             } else if (event.key.code == Keyboard::Escape) {
                 state = MAIN_MENU;
@@ -335,17 +390,15 @@ public:
             moveSnake();
         }
         
-        // Check for bonus food spawn
-        if (!bonusFoodActive && !food.isBonus) {
-            if (rand() % 300 == 0) { // Random chance
-                spawnFood(true);
-            }
+        // Check for bonus food spawn (every 15-25 seconds)
+        if (!bonusFoodActive && bonusFoodSpawnTimer.getElapsedTime().asSeconds() >= 15.0f + (rand() % 10)) {
+            spawnFood(true);
+            bonusFoodSpawnTimer.restart();
         }
         
         // Check bonus food timeout
         if (bonusFoodActive && bonusFoodTimer.getElapsedTime().asSeconds() >= bonusFoodDuration) {
             bonusFoodActive = false;
-            spawnFood(false);
         }
         
         // Check consecutive timer
@@ -400,19 +453,47 @@ public:
             }
         }
         
-        snake.push_front(newHead);
+        bool ateFood = false;
         
-        // Check food collision
+        // Check normal food collision
         if (newHead.x == food.x && newHead.y == food.y) {
-            int points = food.isBonus ? 10 : 2;
+            int points = 2;
             score += static_cast<int>(points * scoreMultiplier);
             
             if (soundEnabled) {
-                if (food.isBonus) {
-                    bonusSound.play();
-                } else {
-                    eatSound.play();
-                }
+                eatSound.play();
+            }
+            
+            // Update multipliers
+            if (consecutiveActive) {
+                scoreMultiplier += 0.2f;
+            } else {
+                consecutiveActive = true;
+                scoreMultiplier = 1.0f;
+            }
+            consecutiveTimer.restart();
+            
+            if (mode != FREE_PLAY) {
+                speedMultiplier += 0.1f;
+            }
+            
+            spawnFood(false);
+            ateFood = true;
+            
+            // Check level completion
+            if (mode != FREE_PLAY && levelTarget > 0 && score >= levelTarget) {
+                levelComplete();
+                return;
+            }
+        }
+        
+        // Check bonus food collision
+        if (bonusFoodActive && newHead.x == bonusFood.x && newHead.y == bonusFood.y) {
+            int points = 10;
+            score += static_cast<int>(points * scoreMultiplier);
+            
+            if (soundEnabled) {
+                bonusSound.play();
             }
             
             // Update multipliers
@@ -429,13 +510,19 @@ public:
             }
             
             bonusFoodActive = false;
-            spawnFood(false);
+            bonusFoodSpawnTimer.restart();
+            ateFood = true;
             
             // Check level completion
-            if (mode != FREE_PLAY && score >= levelTarget) {
+            if (mode != FREE_PLAY && levelTarget > 0 && score >= levelTarget) {
                 levelComplete();
+                return;
             }
-        } else {
+        }
+        
+        snake.push_front(newHead);
+        
+        if (!ateFood) {
             snake.pop_back();
         }
     }
@@ -464,8 +551,8 @@ public:
         bgMusic2.stop();
         bgMusic3.stop();
         
-        // Check if score qualifies for leaderboard
-        if (leaderboard.size() < 5 || score > leaderboard.back().second) {
+        // Check if score qualifies for leaderboard (must be > 0)
+        if (score > 0 && (leaderboard.size() < 5 || score > leaderboard.back().second)) {
             enteringName = true;
             playerName = "";
         }
@@ -492,6 +579,11 @@ public:
     }
     
     void renderMainMenu() {
+        // Draw background if available
+        if (menuBgTexture.getSize().x > 0) {
+            window.draw(menuBg);
+        }
+        
         Text title("SNAKEBYTE", font, 60);
         title.setFillColor(Color::Green);
         title.setPosition(WINDOW_WIDTH / 2 - 150, 50);
@@ -503,29 +595,64 @@ public:
         window.draw(subtitle);
         
         std::vector<std::string> options = {
-            "1. Play Levels",
-            "2. Free Play",
-            "3. Leaderboard",
-            "4. Settings",
-            "5. Exit"
+            "1. Play Levels (Press 1 or P)",
+            "2. Free Play (Press 2 or F)",
+            "3. Leaderboard (Press 3 or L)",
+            "4. Settings (Press 4 or S)",
+            "5. Exit (Press 5 or Q)"
         };
         
+        Vector2i mousePos = Mouse::getPosition(window);
+        
         for (size_t i = 0; i < options.size(); i++) {
-            Text option(options[i], font, 30);
-            option.setFillColor(Color::White);
-            option.setPosition(WINDOW_WIDTH / 2 - 100, 220 + i * 60);
+            Text option(options[i], font, 24);
+            int yPos = 220 + i * 60;
+            
+            // Highlight on hover
+            if (mousePos.x >= 250 && mousePos.x <= 550 && 
+                mousePos.y >= yPos && mousePos.y <= yPos + 40) {
+                option.setFillColor(Color::Yellow);
+            } else {
+                option.setFillColor(Color::White);
+            }
+            
+            option.setPosition(WINDOW_WIDTH / 2 - 180, yPos);
             window.draw(option);
         }
+        
+        Text hint("Use Arrow Keys or WASD to play", font, 18);
+        hint.setFillColor(Color(100, 100, 100));
+        hint.setPosition(WINDOW_WIDTH / 2 - 130, 540);
+        window.draw(hint);
     }
     
     void renderGame() {
-        // Draw borders for non-free play
+        // Draw background based on level
+        if (mode == FREE_PLAY) {
+            if (level1BgTexture.getSize().x > 0) {
+                window.draw(level1Bg);
+            }
+        } else if (currentLevel == 1) {
+            if (level1BgTexture.getSize().x > 0) {
+                window.draw(level1Bg);
+            }
+        } else if (currentLevel == 2) {
+            if (level2BgTexture.getSize().x > 0) {
+                window.draw(level2Bg);
+            }
+        } else if (currentLevel == 3) {
+            if (level3BgTexture.getSize().x > 0) {
+                window.draw(level3Bg);
+            }
+        }
+        
+        // Draw borders for non-free play with thicker, more visible border
         if (mode != FREE_PLAY) {
-            RectangleShape border(Vector2f(WINDOW_WIDTH - 4, WINDOW_HEIGHT - 4));
-            border.setPosition(2, 2);
+            RectangleShape border(Vector2f(WINDOW_WIDTH - 8, WINDOW_HEIGHT - 8));
+            border.setPosition(4, 4);
             border.setFillColor(Color::Transparent);
-            border.setOutlineColor(Color(100, 100, 100));
-            border.setOutlineThickness(2);
+            border.setOutlineColor(Color(0, 255, 0)); // Bright green border
+            border.setOutlineThickness(4);
             window.draw(border);
         }
         
@@ -537,13 +664,19 @@ public:
             window.draw(rect);
         }
         
-        // Draw food
-        RectangleShape foodRect(Vector2f(food.isBonus ? GRID_SIZE : GRID_SIZE - 4, 
-                                         food.isBonus ? GRID_SIZE : GRID_SIZE - 4));
-        foodRect.setPosition(food.x * GRID_SIZE + (food.isBonus ? 0 : 2), 
-                            food.y * GRID_SIZE + (food.isBonus ? 0 : 2));
-        foodRect.setFillColor(food.isBonus ? Color::Yellow : Color::Red);
+        // Draw normal food
+        RectangleShape foodRect(Vector2f(GRID_SIZE - 4, GRID_SIZE - 4));
+        foodRect.setPosition(food.x * GRID_SIZE + 2, food.y * GRID_SIZE + 2);
+        foodRect.setFillColor(Color::Red);
         window.draw(foodRect);
+        
+        // Draw bonus food if active
+        if (bonusFoodActive) {
+            RectangleShape bonusFoodRect(Vector2f(GRID_SIZE, GRID_SIZE));
+            bonusFoodRect.setPosition(bonusFood.x * GRID_SIZE, bonusFood.y * GRID_SIZE);
+            bonusFoodRect.setFillColor(Color::Yellow);
+            window.draw(bonusFoodRect);
+        }
         
         // Draw snake
         for (size_t i = 0; i < snake.size(); i++) {
