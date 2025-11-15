@@ -311,8 +311,14 @@ public:
                 handleGameInput(event);
             } else if (state == PAUSED) {
                 // Resume on any key press or mouse click
-                if (event.type == Event::KeyPressed || event.type == Event::MouseButtonPressed) {
-                    state = previousState;
+                if (event.type == Event::KeyPressed) {
+                    if(event.key.code == Keyboard::Escape || event.key.code == Keyboard::P || event.key.code == Keyboard::Space){
+                        state = previousState;
+                    }
+                    else if(event.key.code == Keyboard::Q){
+                        state = MAIN_MENU;
+                        bgMusic1.stop();
+                    }
                 }
             } else if (state == GAME_OVER && enteringName) {
                 handleNameInput(event);
@@ -404,7 +410,7 @@ public:
                 nextDirection = LEFT;
             } else if ((event.key.code == Keyboard::Right || event.key.code == Keyboard::D) && direction != LEFT) {
                 nextDirection = RIGHT;
-            } else if (event.key.code == Keyboard::Escape || event.key.code == Keyboard::P) {
+            } else if (event.key.code == Keyboard::Escape || event.key.code == Keyboard::P || event.key.code == Keyboard::Space) {
                 previousState = PLAYING;
                 state = PAUSED;
             }
@@ -668,12 +674,12 @@ public:
             window.draw(menuBg);
         }
         
-        Text title("SNAKEBYTE", font, 60);
+        Text title("SNAKE_BYTE", font, 60);
         title.setFillColor(Color::Green);
         title.setPosition(WINDOW_WIDTH / 2 - 150, 50);
         window.draw(title);
         
-        Text subtitle("Classic Snake Game", font, 20);
+        Text subtitle("A classic Snake Game", font, 20);
         subtitle.setFillColor(Color(150, 150, 150));
         subtitle.setPosition(WINDOW_WIDTH / 2 - 100, 130);
         window.draw(subtitle);
@@ -847,7 +853,7 @@ public:
         title.setPosition(WINDOW_WIDTH / 2 - 180, 200);
         window.draw(title);
         
-        Text hint("Press any key to continue", font, 25);
+        Text hint("Press ESC/P/Space to continue \n Press Q to return to Main Menu", font, 25);
         hint.setFillColor(Color::White);
         hint.setPosition(WINDOW_WIDTH / 2 - 150, 320);
         window.draw(hint);
@@ -857,7 +863,7 @@ public:
         controls.setPosition(WINDOW_WIDTH / 2 - 140, 400);
         window.draw(controls);
         
-        Text pauseKey("Pause: ESC or P", font, 20);
+        Text pauseKey("Pause: ESC/P/Space", font, 20);
         pauseKey.setFillColor(Color(200, 200, 200));
         pauseKey.setPosition(WINDOW_WIDTH / 2 - 80, 430);
         window.draw(pauseKey);
