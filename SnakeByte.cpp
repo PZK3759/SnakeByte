@@ -204,7 +204,7 @@ public:
         
         loadSettings();
         
-        soundEnabled = true;
+        // soundEnabled = true;
         state = MAIN_MENU;
         currentLevelIndex = 0;
         enteringName = false;
@@ -219,13 +219,17 @@ public:
     }
     
     void initializeLevels() {
+
+        std::string music1 = "assets/audios/music1.ogg";
+        std::string bg1 = "assets/images/level1_bg.png";
+
         // Level 1: Simple box border, target score 50
-        Level level1(1, 50, "Level 1", "music1.ogg", "level1_bg.png", 
+        Level level1(1, 50, "Level 1", music1, bg1, 
                      Color(0, 255, 0), 4.0f, true);
         levels.push_back(level1);
         
         // Level 2: Add obstacles, target score 150
-        Level level2(2, 150, "Level 2", "music2.ogg", "level2_bg.png",
+        Level level2(2, 150, "Level 2", music1, bg1,
                      Color(255, 255, 0), 4.0f, true);
         level2.setupDefaultObstacles();
         levels.push_back(level2);
@@ -1045,16 +1049,22 @@ public:
             try {
                 json j;
                 file >> j;
+                file.close();
+                
                 if (j.contains("sound")) {
-                    soundEnabled = j["sound"];
+                    soundEnabled = j["sound"].get<bool>();
+                    std::cout << "Settings loaded: sound = " << (soundEnabled ? "ON" : "OFF") << std::endl;
+                } else {
+                    soundEnabled = true;
                 }
-            } catch (...) {
+            } catch (const std::exception& e) {
+                std::cerr << "Error loading settings: " << e.what() << std::endl;
                 soundEnabled = true;
                 saveSettings();
             }
-            file.close();
         } else {
             // No settings file, create with defaults
+            std::cout << "No settings file found, creating with defaults" << std::endl;
             soundEnabled = true;
             saveSettings();
         }
@@ -1068,6 +1078,9 @@ public:
         if (file.is_open()) {
             file << j.dump(4);
             file.close();
+            std::cout << "Settings saved: sound = " << (soundEnabled ? "ON" : "OFF") << std::endl;
+        } else {
+            std::cerr << "Failed to save settings" << std::endl;
         }
     }
     
