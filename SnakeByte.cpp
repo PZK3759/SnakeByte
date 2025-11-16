@@ -190,11 +190,11 @@ public:
         initializeLevels();
         
         // Load background images
-        menuBgTexture.loadFromFile("menu_bg.png");
+        menuBgTexture.loadFromFile("assets/images/menu_bg.png");
         transitionBgTexture.loadFromFile("transition_bg.png");
         pauseBgTexture.loadFromFile("pause_bg.png");
-        leaderboardBgTexture.loadFromFile("leaderboard_bg.png");
-        settingsBgTexture.loadFromFile("settings_bg.png");
+        leaderboardBgTexture.loadFromFile("assets/images/menu_bg.png");
+        settingsBgTexture.loadFromFile("assets/images/menu_bg.png");
         
         menuBg.setTexture(menuBgTexture);
         transitionBg.setTexture(transitionBgTexture);
@@ -390,9 +390,18 @@ public:
             } else if (state == PLAYING) {
                 handleGameInput(event);
             } else if (state == PAUSED) {
-                if (event.type == Event::KeyPressed || event.type == Event::MouseButtonPressed) {
-                    state = previousState;
+
+                if (event.type == Event::KeyPressed) {
+                    if(event.key.code == Keyboard::Escape || event.key.code == Keyboard::P || event.key.code == Keyboard::Space){
+                        state = previousState;
+                    }
+                    else if(event.key.code == Keyboard::Q){
+                        state = MAIN_MENU;
+                        currentBgMusic.stop();
+                    }
                 }
+
+
             } else if (state == GAME_OVER && enteringName) {
                 handleNameInput(event);
             } else if (state == LEVEL_TRANSITION) {
@@ -480,7 +489,7 @@ public:
                 nextDirection = LEFT;
             } else if ((event.key.code == Keyboard::Right || event.key.code == Keyboard::D) && direction != LEFT) {
                 nextDirection = RIGHT;
-            } else if (event.key.code == Keyboard::Escape || event.key.code == Keyboard::P) {
+            } else if (event.key.code == Keyboard::Escape || event.key.code == Keyboard::P || event.key.code == Keyboard::Space) {
                 previousState = PLAYING;
                 state = PAUSED;
             }
@@ -713,18 +722,18 @@ public:
             window.draw(menuBg);
         }
         
-        Text title("SNAKEBYTE", font, 60);
+        Text title("SNAKE_BYTE", font, 60);
         title.setFillColor(Color::Green);
         title.setPosition(WINDOW_WIDTH / 2 - 150, 50);
         window.draw(title);
         
-        Text subtitle("Classic Snake Game", font, 20);
+        Text subtitle("A classic Snake Game", font, 20);
         subtitle.setFillColor(Color(150, 150, 150));
         subtitle.setPosition(WINDOW_WIDTH / 2 - 100, 130);
         window.draw(subtitle);
         
         std::vector<std::string> options = {
-            "1. Play Levels (Press 1 or P)",
+            "1. Play Quest (Press 1 or P)",
             "2. Free Play (Press 2 or F)",
             "3. Leaderboard (Press 3 or L)",
             "4. Settings (Press 4 or S)",
@@ -915,7 +924,7 @@ public:
         title.setPosition(WINDOW_WIDTH / 2 - 180, 200);
         window.draw(title);
         
-        Text hint("Press any key to continue", font, 25);
+        Text hint("Press ESC/P/Space to continue \n Press Q to return to Main Menu", font, 25);
         hint.setFillColor(Color::White);
         hint.setPosition(WINDOW_WIDTH / 2 - 150, 320);
         window.draw(hint);
@@ -925,7 +934,7 @@ public:
         controls.setPosition(WINDOW_WIDTH / 2 - 140, 400);
         window.draw(controls);
         
-        Text pauseKey("Pause: ESC or P", font, 20);
+        Text pauseKey("Pause: ESC/P/Space", font, 20);
         pauseKey.setFillColor(Color(200, 200, 200));
         pauseKey.setPosition(WINDOW_WIDTH / 2 - 80, 430);
         window.draw(pauseKey);
