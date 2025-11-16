@@ -5,6 +5,10 @@
             "score": 230
         },
         {
+            "name": "Lian",
+            "score": 146
+        },
+        {
             "name": "zahin",
             "score": 52
         },
@@ -15,32 +19,28 @@
         {
             "name": "zahin",
             "score": 24
-        },
-        {
-            "name": "zahin",
-            "score": 22
         }
     ],
     "normal": [
+        {
+            "name": "Kenji",
+            "score": 106
+        },
+        {
+            "name": "Mosha",
+            "score": 82
+        },
         {
             "name": "zahin",
             "score": 77
         },
         {
-            "name": "zahin",
-            "score": 48
+            "name": "Ipman",
+            "score": 54
         },
         {
-            "name": "zahin",
-            "score": 38
-        },
-        {
-            "name": "zahin",
-            "score": 34
-        },
-        {
-            "name": "zahin",
-            "score": 32
+            "name": "Arifin",
+            "score": 52
         }
     ]
 }

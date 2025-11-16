@@ -71,6 +71,9 @@ public:
     
     // Setup default obstacles for each level
     void setupDefaultObstacles() {
+
+    //TODO: Change obstacle layout in level 2 and 3
+    
     clearObstacles();
     
     if (levelNumber == 2) {
@@ -229,16 +232,18 @@ public:
     
     void initializeLevels() {
 
+        //TODO: Add more levels
+
         std::string music1 = "assets/audios/music1.ogg";
         std::string bg1 = "assets/images/level1_bg.png";
 
-        // Level 1: Simple box border, target score 50
-        Level level1(1, 10, "Level 1", music1, bg1, 
+        // Level 1: Simple box border, target score 100 (to be adjusted)
+        Level level1(1, 100, "Level 1", music1, bg1, 
                      Color(0, 255, 0), 4.0f, true);
         levels.push_back(level1);
         
-        // Level 2: Add obstacles, target score 150
-        Level level2(2, 20, "Level 2", music1, bg1,
+        // Level 2: Add obstacles, target score 200 (to be adjusted)
+        Level level2(2, 200, "Level 2", music1, bg1,
                      Color(255, 255, 0), 4.0f, true);
         level2.setupDefaultObstacles();
         levels.push_back(level2);
@@ -845,7 +850,7 @@ public:
         // Draw normal food
         CircleShape foodCircle(GRID_SIZE / 2 - 2);
         foodCircle.setPosition(food.x * GRID_SIZE + 2, food.y * GRID_SIZE + 2);
-        foodCircle.setFillColor(Color::Red);
+        foodCircle.setFillColor(Color(226,0,53));
         window.draw(foodCircle);
         
         // Draw bonus food with animation
@@ -855,7 +860,7 @@ public:
             
             CircleShape bonusFoodCircle(GRID_SIZE / 2 + 2);
             bonusFoodCircle.setScale(scale, scale);
-            bonusFoodCircle.setFillColor(Color::Yellow);
+            bonusFoodCircle.setFillColor(Color(196,204,4));
             bonusFoodCircle.setOrigin(GRID_SIZE / 2 + 2, GRID_SIZE / 2 + 2);
             bonusFoodCircle.setPosition(bonusFood.x * GRID_SIZE + GRID_SIZE / 2, 
                                         bonusFood.y * GRID_SIZE + GRID_SIZE / 2);
@@ -866,11 +871,69 @@ public:
         for (size_t i = 0; i < snake.size(); i++) {
             RectangleShape rect(Vector2f(GRID_SIZE - 2, GRID_SIZE - 2));
             rect.setPosition(snake[i].x * GRID_SIZE + 1, snake[i].y * GRID_SIZE + 1);
-            rect.setFillColor(i == 0 ? Color::Green : Color(0, 200, 0));
-            rect.setOutlineColor(Color(0, 150, 0));
+            rect.setFillColor(i == 0 ? Color(43, 69, 45) : Color(70, 114, 70));
+            rect.setOutlineColor(Color(28, 46, 29));
             rect.setOutlineThickness(1);
             window.draw(rect);
-        }
+    
+            // Draw eyes on the head
+            if (i == 0) {
+                float headX = snake[i].x * GRID_SIZE;
+                float headY = snake[i].y * GRID_SIZE;
+                float eyeSize = 3.0f;  // Eye radius
+                
+                // Determine eye position based on direction
+                float leftEyeX, leftEyeY, rightEyeX, rightEyeY;
+                
+                if (direction == UP) {
+                    leftEyeX = headX + 6;
+                    leftEyeY = headY + 6;
+                    rightEyeX = headX + 14;
+                    rightEyeY = headY + 6;
+                } else if (direction == DOWN) {
+                    leftEyeX = headX + 6;
+                    leftEyeY = headY + 14;
+                    rightEyeX = headX + 14;
+                    rightEyeY = headY + 14;
+                } else if (direction == LEFT) {
+                    leftEyeX = headX + 6;
+                    leftEyeY = headY + 6;
+                    rightEyeX = headX + 6;
+                    rightEyeY = headY + 14;
+                } else { // RIGHT
+                    leftEyeX = headX + 14;
+                    leftEyeY = headY + 6;
+                    rightEyeX = headX + 14;
+                    rightEyeY = headY + 14;
+                }
+                
+                // Draw left eye
+                CircleShape leftEye(eyeSize);
+                leftEye.setPosition(leftEyeX, leftEyeY);
+                leftEye.setFillColor(Color::White);
+                window.draw(leftEye);
+                
+                // Draw left pupil
+                CircleShape leftPupil(eyeSize / 2);
+                leftPupil.setPosition(leftEyeX + eyeSize/2, leftEyeY + eyeSize/2);
+                leftPupil.setFillColor(Color::Black);
+                window.draw(leftPupil);
+                
+                // Draw right eye
+                CircleShape rightEye(eyeSize);
+                rightEye.setPosition(rightEyeX, rightEyeY);
+                rightEye.setFillColor(Color::White);
+                window.draw(rightEye);
+                
+                // Draw right pupil
+                CircleShape rightPupil(eyeSize / 2);
+                rightPupil.setPosition(rightEyeX + eyeSize/2, rightEyeY + eyeSize/2);
+                rightPupil.setFillColor(Color::Black);
+                window.draw(rightPupil);
+                
+            }
+            
+        }   
         
         // Draw UI (outside borders)
         Text scoreText("Score: " + std::to_string(score), font, 20);
