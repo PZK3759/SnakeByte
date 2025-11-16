@@ -235,7 +235,7 @@ public:
         levels.push_back(level2);
         
         // Level 3: More complex obstacles, no target (play until death)
-        Level level3(3, -1, "Level 3", "music3.ogg", "level3_bg.png",
+        Level level3(3, -1, "Level 3", music1, bg1,
                      Color(255, 100, 0), 5.0f, true);
         level3.setupDefaultObstacles();
         levels.push_back(level3);
@@ -270,11 +270,11 @@ public:
             // Use Level 1 assets for free play
             currentLevelBgTexture.loadFromFile(levels[0].bgImageFile);
             currentLevelBg.setTexture(currentLevelBgTexture);
-            currentBgMusic.openFromFile(levels[0].bgMusicFile);
+            // currentBgMusic.openFromFile(levels[0].bgMusicFile);
         } else if (currentLevelIndex < levels.size()) {
             currentLevelBgTexture.loadFromFile(levels[currentLevelIndex].bgImageFile);
             currentLevelBg.setTexture(currentLevelBgTexture);
-            currentBgMusic.openFromFile(levels[currentLevelIndex].bgMusicFile);
+            // currentBgMusic.openFromFile(levels[currentLevelIndex].bgMusicFile);
         }
     }
     
@@ -282,8 +282,13 @@ public:
         currentBgMusic.stop();
         
         if (soundEnabled) {
-            currentBgMusic.play();
-            currentBgMusic.setLoop(true);
+            if (currentBgMusic.openFromFile(isFreePlay ? levels[0].bgMusicFile : levels[currentLevelIndex].bgMusicFile)) {
+                currentBgMusic.setLoop(true);
+                currentBgMusic.play();
+                std::cout << "Playing music: " << (isFreePlay ? levels[0].bgMusicFile : levels[currentLevelIndex].bgMusicFile) << std::endl;
+            } else {
+                std::cerr << "Failed to load music file" << std::endl;
+            }
         }
     }
     
@@ -507,6 +512,11 @@ public:
         }
         
         if (state != PLAYING) return;
+
+        if (soundEnabled && currentBgMusic.getStatus() != sf::Music::Playing) {
+    std::cout << "Music stopped, restarting..." << std::endl;
+    playBgMusic();
+}
         
         float elapsed = gameClock.getElapsedTime().asSeconds();
         float currentInterval = moveInterval / speedMultiplier;
