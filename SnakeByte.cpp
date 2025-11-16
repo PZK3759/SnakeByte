@@ -19,6 +19,11 @@ const int GRID_SIZE = 20;
 const int GRID_WIDTH = WINDOW_WIDTH / GRID_SIZE;
 const int GRID_HEIGHT = WINDOW_HEIGHT / GRID_SIZE;
 
+const int UI_ROWS = 3;  
+const int PLAYFIELD_START_ROW = UI_ROWS;  
+const int PLAYFIELD_HEIGHT = GRID_HEIGHT - UI_ROWS;
+const int UI_AREA_HEIGHT = UI_ROWS * GRID_SIZE; 
+
 enum Direction { UP, DOWN, LEFT, RIGHT };
 enum GameState { MAIN_MENU, PLAYING, GAME_OVER, LEADERBOARD, SETTINGS, LEVEL_TRANSITION, PAUSED };
 
@@ -66,44 +71,44 @@ public:
     
     // Setup default obstacles for each level
     void setupDefaultObstacles() {
-        clearObstacles();
-        
-        if (levelNumber == 2) {
-            // Level 2: Single horizontal wall (away from center spawn)
-            for (int i = 5; i < 15; i++) {
-                addObstacle(i, 10);
+    clearObstacles();
+    
+    if (levelNumber == 2) {
+        // Level 2: Horizontal walls (adjusted for playfield)
+        for (int i = 5; i < 15; i++) {
+            addObstacle(i, PLAYFIELD_START_ROW + 7);  // Add offset
+        }
+        for (int i = 25; i < 35; i++) {
+            addObstacle(i, PLAYFIELD_START_ROW + 17); // Add offset
+        }
+    } else if (levelNumber == 3) {
+        // Level 3: Corner obstacles (adjusted for playfield)
+        // Top-left corner
+        for (int i = 2; i < 8; i++) {
+            for (int j = PLAYFIELD_START_ROW + 2; j < PLAYFIELD_START_ROW + 6; j++) {
+                addObstacle(i, j);
             }
-            for (int i = 25; i < 35; i++) {
-                addObstacle(i, 20);
+        }
+        // Top-right corner
+        for (int i = 32; i < 38; i++) {
+            for (int j = PLAYFIELD_START_ROW + 2; j < PLAYFIELD_START_ROW + 6; j++) {
+                addObstacle(i, j);
             }
-        } else if (levelNumber == 3) {
-            // Level 3: Corner obstacles (avoid center)
-            // Top-left corner
-            for (int i = 2; i < 8; i++) {
-                for (int j = 2; j < 6; j++) {
-                    addObstacle(i, j);
-                }
+        }
+        // Bottom-left corner
+        for (int i = 2; i < 8; i++) {
+            for (int j = 24; j < 28; j++) {
+                addObstacle(i, j);
             }
-            // Top-right corner
-            for (int i = 32; i < 38; i++) {
-                for (int j = 2; j < 6; j++) {
-                    addObstacle(i, j);
-                }
-            }
-            // Bottom-left corner
-            for (int i = 2; i < 8; i++) {
-                for (int j = 24; j < 28; j++) {
-                    addObstacle(i, j);
-                }
-            }
-            // Bottom-right corner
-            for (int i = 32; i < 38; i++) {
-                for (int j = 24; j < 28; j++) {
-                    addObstacle(i, j);
-                }
+        }
+        // Bottom-right corner
+        for (int i = 32; i < 38; i++) {
+            for (int j = 24; j < 28; j++) {
+                addObstacle(i, j);
             }
         }
     }
+}
     
     bool isObstacleAt(int x, int y) const {
         for (const auto& obs : obstacles) {
@@ -119,8 +124,8 @@ private:
     Font font;
     
     // Background textures
-    Texture menuBgTexture, transitionBgTexture, pauseBgTexture, leaderboardBgTexture, settingsBgTexture;
-    Sprite menuBg, transitionBg, pauseBg, leaderboardBg, settingsBg;
+    Texture menuBgTexture, transitionBgTexture, pauseBgTexture, leaderboardBgTexture, settingsBgTexture, uiAreaBgTexture;
+    Sprite menuBg, transitionBg, pauseBg, leaderboardBg, settingsBg,uiAreaBg;
     
     // Level system
     std::vector<Level> levels;
@@ -195,12 +200,16 @@ public:
         pauseBgTexture.loadFromFile("pause_bg.png");
         leaderboardBgTexture.loadFromFile("assets/images/menu_bg.png");
         settingsBgTexture.loadFromFile("assets/images/menu_bg.png");
-        
+        uiAreaBgTexture.loadFromFile("ui_area_bg.png");
+
         menuBg.setTexture(menuBgTexture);
         transitionBg.setTexture(transitionBgTexture);
         pauseBg.setTexture(pauseBgTexture);
         leaderboardBg.setTexture(leaderboardBgTexture);
         settingsBg.setTexture(settingsBgTexture);
+        uiAreaBg.setTexture(uiAreaBgTexture);
+
+        uiAreaBg.setTextureRect(IntRect(0, 0, WINDOW_WIDTH, UI_AREA_HEIGHT));
         
         loadSettings();
         
@@ -224,12 +233,12 @@ public:
         std::string bg1 = "assets/images/level1_bg.png";
 
         // Level 1: Simple box border, target score 50
-        Level level1(1, 50, "Level 1", music1, bg1, 
+        Level level1(1, 10, "Level 1", music1, bg1, 
                      Color(0, 255, 0), 4.0f, true);
         levels.push_back(level1);
         
         // Level 2: Add obstacles, target score 150
-        Level level2(2, 150, "Level 2", music1, bg1,
+        Level level2(2, 20, "Level 2", music1, bg1,
                      Color(255, 255, 0), 4.0f, true);
         level2.setupDefaultObstacles();
         levels.push_back(level2);
@@ -296,7 +305,7 @@ public:
         // Reset snake to starting position and size (center of screen, away from borders)
         snake.clear();
         int centerX = GRID_WIDTH / 2;
-        int centerY = GRID_HEIGHT / 2;
+        int centerY = PLAYFIELD_START_ROW + (PLAYFIELD_HEIGHT / 2);
         snake.push_back({centerX, centerY});
         snake.push_back({centerX - 1, centerY});
         snake.push_back({centerX - 2, centerY});
@@ -334,15 +343,16 @@ public:
         do {
             valid = true;
             x = rand() % GRID_WIDTH;
-            y = rand() % GRID_HEIGHT;
+            y = PLAYFIELD_START_ROW + 1 + rand() % (PLAYFIELD_HEIGHT - 2);
             
             // Check if inside border area
             if (!isFreePlay) {
-                if (x == 0 || x == GRID_WIDTH - 1 || y == 0 || y == GRID_HEIGHT - 1) {
+                if (x == 0 || x == GRID_WIDTH - 1 || 
+                    y == PLAYFIELD_START_ROW || y == GRID_HEIGHT - 1) {  // CHANGED
                     valid = false;
                     continue;
-                }
-            }
+        }
+    }
             
             // Check snake collision
             for (const auto& seg : snake) {
@@ -566,16 +576,17 @@ public:
         if (isFreePlay) {
             if (newHead.x < 0) newHead.x = GRID_WIDTH - 1;
             if (newHead.x >= GRID_WIDTH) newHead.x = 0;
-            if (newHead.y < 0) newHead.y = GRID_HEIGHT - 1;
-            if (newHead.y >= GRID_HEIGHT) newHead.y = 0;
+            if (newHead.y < PLAYFIELD_START_ROW) newHead.y = GRID_HEIGHT - 1;  // CHANGED
+            if (newHead.y >= GRID_HEIGHT) newHead.y = PLAYFIELD_START_ROW;     // CHANGED
         } else {
-            // Check border collision (treat borders as walls)
-            if (newHead.x <= 0 || newHead.x >= GRID_WIDTH - 1 || 
-                newHead.y <= 0 || newHead.y >= GRID_HEIGHT - 1) {
-                gameOver();
-                return;
-            }
-        }
+    // Check border collision (treat borders as walls)
+    if (newHead.x <= 0 || newHead.x >= GRID_WIDTH - 1 || 
+        newHead.y <= PLAYFIELD_START_ROW || newHead.y >= GRID_HEIGHT - 1) {  // CHANGED
+        gameOver();
+        return;
+    }
+}
+
         
         // Check self collision
         for (const auto& seg : snake) {
@@ -764,63 +775,70 @@ public:
     }
     
     void renderGame() {
+        // Draw UI area background
+        if (uiAreaBgTexture.getSize().x > 0) {
+        window.draw(uiAreaBg);
+        }
+    
+        // Draw playfield background (shifted down)
         if (currentLevelBgTexture.getSize().x > 0) {
-            window.draw(currentLevelBg);
+        currentLevelBg.setPosition(0, UI_AREA_HEIGHT);  // Shift down
+        window.draw(currentLevelBg);
         }
         
         Color wallColor(96, 26, 48); // #601a30
-        Color wallBorderColor(150, 50, 80); // Lighter shade for brick effect
+        Color wallBorderColor(62, 21, 47); 
         
         // Draw borders as grid squares with brick effect
         if (!isFreePlay) {
-            // Top border
-            for (int i = 0; i < GRID_WIDTH; i++) {
-                RectangleShape borderSquare(Vector2f(GRID_SIZE - 2, GRID_SIZE - 2));
-                borderSquare.setPosition(i * GRID_SIZE + 1, 1);
-                borderSquare.setFillColor(wallColor);
-                borderSquare.setOutlineColor(wallBorderColor);
-                borderSquare.setOutlineThickness(1);
-                window.draw(borderSquare);
+        // Top border (at row 3 - start of playfield)
+        for (int i = 0; i < GRID_WIDTH; i++) {
+            RectangleShape borderSquare(Vector2f(GRID_SIZE - 2, GRID_SIZE - 2));
+            borderSquare.setPosition(i * GRID_SIZE + 1, PLAYFIELD_START_ROW * GRID_SIZE + 1);
+            borderSquare.setFillColor(wallColor);
+            borderSquare.setOutlineColor(wallBorderColor);
+            borderSquare.setOutlineThickness(1);
+            window.draw(borderSquare);
             }
-            
-            // Bottom border
-            for (int i = 0; i < GRID_WIDTH; i++) {
-                RectangleShape borderSquare(Vector2f(GRID_SIZE - 2, GRID_SIZE - 2));
-                borderSquare.setPosition(i * GRID_SIZE + 1, (GRID_HEIGHT - 1) * GRID_SIZE + 1);
-                borderSquare.setFillColor(wallColor);
-                borderSquare.setOutlineColor(wallBorderColor);
-                borderSquare.setOutlineThickness(1);
-                window.draw(borderSquare);
+        
+        // Bottom border
+        for (int i = 0; i < GRID_WIDTH; i++) {
+            RectangleShape borderSquare(Vector2f(GRID_SIZE - 2, GRID_SIZE - 2));
+            borderSquare.setPosition(i * GRID_SIZE + 1, (GRID_HEIGHT - 1) * GRID_SIZE + 1);
+            borderSquare.setFillColor(wallColor);
+            borderSquare.setOutlineColor(wallBorderColor);
+            borderSquare.setOutlineThickness(1);
+            window.draw(borderSquare);
             }
-            
-            // Left border
-            for (int i = 1; i < GRID_HEIGHT - 1; i++) {
-                RectangleShape borderSquare(Vector2f(GRID_SIZE - 2, GRID_SIZE - 2));
-                borderSquare.setPosition(1, i * GRID_SIZE + 1);
-                borderSquare.setFillColor(wallColor);
-                borderSquare.setOutlineColor(wallBorderColor);
-                borderSquare.setOutlineThickness(1);
-                window.draw(borderSquare);
+        
+        // Left border (starting from row 3)
+        for (int i = PLAYFIELD_START_ROW + 1; i < GRID_HEIGHT - 1; i++) {
+            RectangleShape borderSquare(Vector2f(GRID_SIZE - 2, GRID_SIZE - 2));
+            borderSquare.setPosition(1, i * GRID_SIZE + 1);
+            borderSquare.setFillColor(wallColor);
+            borderSquare.setOutlineColor(wallBorderColor);
+            borderSquare.setOutlineThickness(1);
+            window.draw(borderSquare);
             }
-            
-            // Right border
-            for (int i = 1; i < GRID_HEIGHT - 1; i++) {
-                RectangleShape borderSquare(Vector2f(GRID_SIZE - 2, GRID_SIZE - 2));
-                borderSquare.setPosition((GRID_WIDTH - 1) * GRID_SIZE + 1, i * GRID_SIZE + 1);
-                borderSquare.setFillColor(wallColor);
-                borderSquare.setOutlineColor(wallBorderColor);
-                borderSquare.setOutlineThickness(1);
-                window.draw(borderSquare);
+        
+        // Right border (starting from row 3)
+        for (int i = PLAYFIELD_START_ROW + 1; i < GRID_HEIGHT - 1; i++) {
+            RectangleShape borderSquare(Vector2f(GRID_SIZE - 2, GRID_SIZE - 2));
+            borderSquare.setPosition((GRID_WIDTH - 1) * GRID_SIZE + 1, i * GRID_SIZE + 1);
+            borderSquare.setFillColor(wallColor);
+            borderSquare.setOutlineColor(wallBorderColor);
+            borderSquare.setOutlineThickness(1);
+            window.draw(borderSquare);
             }
-            
-            // Draw obstacles as grid squares with brick effect
-            for (const auto& obs : getCurrentLevel().obstacles) {
-                RectangleShape rect(Vector2f(GRID_SIZE - 2, GRID_SIZE - 2));
-                rect.setPosition(obs.x * GRID_SIZE + 1, obs.y * GRID_SIZE + 1);
-                rect.setFillColor(wallColor);
-                rect.setOutlineColor(wallBorderColor);
-                rect.setOutlineThickness(1);
-                window.draw(rect);
+        
+        // Draw obstacles as grid squares with brick effect
+        for (const auto& obs : getCurrentLevel().obstacles) {
+            RectangleShape rect(Vector2f(GRID_SIZE - 2, GRID_SIZE - 2));
+            rect.setPosition(obs.x * GRID_SIZE + 1, obs.y * GRID_SIZE + 1);
+            rect.setFillColor(wallColor);
+            rect.setOutlineColor(wallBorderColor);
+            rect.setOutlineThickness(1);
+            window.draw(rect);
             }
         }
         
