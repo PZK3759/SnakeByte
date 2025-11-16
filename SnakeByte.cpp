@@ -21,7 +21,6 @@ const int GRID_HEIGHT = WINDOW_HEIGHT / GRID_SIZE;
 
 enum Direction { UP, DOWN, LEFT, RIGHT };
 enum GameState { MAIN_MENU, PLAYING, GAME_OVER, LEADERBOARD, SETTINGS, LEVEL_TRANSITION, PAUSED };
-enum GameMode { LEVEL_1, LEVEL_2, LEVEL_3, FREE_PLAY };
 
 struct SnakeSegment {
     int x, y;
@@ -37,26 +36,102 @@ struct Obstacle {
     int x, y;
 };
 
+// Level class to encapsulate level-specific data
+class Level {
+public:
+    int levelNumber;
+    int scoreTarget;
+    std::string name;
+    std::vector<Obstacle> obstacles;
+    std::string bgMusicFile;
+    std::string bgImageFile;
+    Color borderColor;
+    float borderThickness;
+    bool hasBorder;
+    
+    Level(int num, int target, const std::string& levelName, 
+          const std::string& music, const std::string& bgImage,
+          Color borderCol = Color::Green, float thickness = 4.0f, bool showBorder = true)
+        : levelNumber(num), scoreTarget(target), name(levelName),
+          bgMusicFile(music), bgImageFile(bgImage), 
+          borderColor(borderCol), borderThickness(thickness), hasBorder(showBorder) {}
+    
+    void addObstacle(int x, int y) {
+        obstacles.push_back({x, y});
+    }
+    
+    void clearObstacles() {
+        obstacles.clear();
+    }
+    
+    // Setup default obstacles for each level
+    void setupDefaultObstacles() {
+        clearObstacles();
+        
+        if (levelNumber == 2) {
+            // Level 2: Single horizontal wall (away from center spawn)
+            for (int i = 5; i < 15; i++) {
+                addObstacle(i, 10);
+            }
+            for (int i = 25; i < 35; i++) {
+                addObstacle(i, 20);
+            }
+        } else if (levelNumber == 3) {
+            // Level 3: Corner obstacles (avoid center)
+            // Top-left corner
+            for (int i = 2; i < 8; i++) {
+                for (int j = 2; j < 6; j++) {
+                    addObstacle(i, j);
+                }
+            }
+            // Top-right corner
+            for (int i = 32; i < 38; i++) {
+                for (int j = 2; j < 6; j++) {
+                    addObstacle(i, j);
+                }
+            }
+            // Bottom-left corner
+            for (int i = 2; i < 8; i++) {
+                for (int j = 24; j < 28; j++) {
+                    addObstacle(i, j);
+                }
+            }
+            // Bottom-right corner
+            for (int i = 32; i < 38; i++) {
+                for (int j = 24; j < 28; j++) {
+                    addObstacle(i, j);
+                }
+            }
+        }
+    }
+    
+    bool isObstacleAt(int x, int y) const {
+        for (const auto& obs : obstacles) {
+            if (obs.x == x && obs.y == y) return true;
+        }
+        return false;
+    }
+};
+
 class SnakeGame {
 private:
     RenderWindow window;
     Font font;
     
     // Background textures
-    Texture menuBgTexture, level1BgTexture, level2BgTexture, level3BgTexture, transitionBgTexture, pauseBgTexture;
-    Sprite menuBg, level1Bg, level2Bg, level3Bg, transitionBg, pauseBg;
+    Texture menuBgTexture, transitionBgTexture, pauseBgTexture, leaderboardBgTexture, settingsBgTexture;
+    Sprite menuBg, transitionBg, pauseBg, leaderboardBg, settingsBg;
     
-    // Transition
-    Clock transitionClock;
-    int nextLevel;
-    
-    // Pause
-    GameState previousState;
+    // Level system
+    std::vector<Level> levels;
+    int currentLevelIndex;
+    Texture currentLevelBgTexture;
+    Sprite currentLevelBg;
+    Music currentBgMusic;
     
     // Game state
     GameState state;
-    GameMode mode;
-    int currentLevel;
+    bool isFreePlay;
     
     // Snake
     std::deque<SnakeSegment> snake;
@@ -69,8 +144,8 @@ private:
     Clock foodTimer;
     bool bonusFoodActive;
     Clock bonusFoodTimer;
-    float bonusFoodDuration;
     Clock bonusFoodSpawnTimer;
+    float bonusFoodDuration;
     
     // Scoring
     int score;
@@ -83,11 +158,7 @@ private:
     Clock gameClock;
     float moveInterval;
     
-    // Obstacles
-    std::vector<Obstacle> obstacles;
-    
     // Audio
-    Music bgMusic1, bgMusic2, bgMusic3;
     SoundBuffer eatBuffer, bonusBuffer, collisionBuffer, gameOverBuffer, levelCompleteBuffer;
     Sound eatSound, bonusSound, collisionSound, gameOverSound, levelCompleteSound;
     bool soundEnabled;
@@ -97,10 +168,14 @@ private:
     std::vector<std::pair<std::string, int>> freePlayLeaderboard;
     std::string playerName;
     bool enteringName;
-    int leaderboardTab; // 0 = normal, 1 = free play
+    int leaderboardTab;
     
-    // Level targets
-    int levelTarget;
+    // Transition
+    Clock transitionClock;
+    int nextLevelIndex;
+    
+    // Pause
+    GameState previousState;
 
 public:
     SnakeGame() : window(VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "SnakeByte") {
@@ -108,31 +183,34 @@ public:
         srand(time(0));
         
         if (!font.loadFromFile("arial.ttf")) {
-            // Fallback - create basic game without custom font
             std::cerr << "Font not loaded\n";
         }
         
-        //TODO: add all the image assets
-        menuBgTexture.loadFromFile("assets/images/menu_bg.png");
-        level1BgTexture.loadFromFile("assets/images/level1_bg.png");
-        level2BgTexture.loadFromFile("level2_bg.png");
-        level3BgTexture.loadFromFile("level3_bg.png");
+        // Initialize levels
+        initializeLevels();
+        
+        // Load background images
+        menuBgTexture.loadFromFile("menu_bg.png");
         transitionBgTexture.loadFromFile("transition_bg.png");
         pauseBgTexture.loadFromFile("pause_bg.png");
+        leaderboardBgTexture.loadFromFile("leaderboard_bg.png");
+        settingsBgTexture.loadFromFile("settings_bg.png");
         
         menuBg.setTexture(menuBgTexture);
-        level1Bg.setTexture(level1BgTexture);
-        level2Bg.setTexture(level2BgTexture);
-        level3Bg.setTexture(level3BgTexture);
         transitionBg.setTexture(transitionBgTexture);
         pauseBg.setTexture(pauseBgTexture);
+        leaderboardBg.setTexture(leaderboardBgTexture);
+        settingsBg.setTexture(settingsBgTexture);
+        
+        loadSettings();
         
         soundEnabled = true;
         state = MAIN_MENU;
-        currentLevel = 1;
+        currentLevelIndex = 0;
         enteringName = false;
         leaderboardTab = 0;
         previousState = MAIN_MENU;
+        isFreePlay = false;
         
         loadLeaderboard();
         initAudio();
@@ -140,14 +218,26 @@ public:
         bonusFoodSpawnTimer.restart();
     }
     
-    //TODO: add all the audio
-    void initAudio() {
-        // Note: You'll need to provide actual audio files
-        // For now, we'll handle missing files gracefully
-        bgMusic1.openFromFile("assets/audios/music1.ogg");
-        bgMusic2.openFromFile("music2.ogg");
-        bgMusic3.openFromFile("music3.ogg");
+    void initializeLevels() {
+        // Level 1: Simple box border, target score 50
+        Level level1(1, 50, "Level 1", "music1.ogg", "level1_bg.png", 
+                     Color(0, 255, 0), 4.0f, true);
+        levels.push_back(level1);
         
+        // Level 2: Add obstacles, target score 150
+        Level level2(2, 150, "Level 2", "music2.ogg", "level2_bg.png",
+                     Color(255, 255, 0), 4.0f, true);
+        level2.setupDefaultObstacles();
+        levels.push_back(level2);
+        
+        // Level 3: More complex obstacles, no target (play until death)
+        Level level3(3, -1, "Level 3", "music3.ogg", "level3_bg.png",
+                     Color(255, 100, 0), 5.0f, true);
+        level3.setupDefaultObstacles();
+        levels.push_back(level3);
+    }
+    
+    void initAudio() {
         eatBuffer.loadFromFile("eat.wav");
         bonusBuffer.loadFromFile("bonus.wav");
         collisionBuffer.loadFromFile("collision.wav");
@@ -161,27 +251,51 @@ public:
         levelCompleteSound.setBuffer(levelCompleteBuffer);
     }
     
-    void startGame(GameMode gMode) {
-        mode = gMode;
-        if (mode != FREE_PLAY) {
-            currentLevel = 1;
-        }
-        score = 0; // Reset score at game start
+    void startGame(bool freePlay) {
+        isFreePlay = freePlay;
+        currentLevelIndex = 0;
+        score = 0;
         resetLevel();
         state = PLAYING;
+        loadLevelAssets();
         playBgMusic();
     }
     
+    void loadLevelAssets() {
+        if (isFreePlay) {
+            // Use Level 1 assets for free play
+            currentLevelBgTexture.loadFromFile(levels[0].bgImageFile);
+            currentLevelBg.setTexture(currentLevelBgTexture);
+            currentBgMusic.openFromFile(levels[0].bgMusicFile);
+        } else if (currentLevelIndex < levels.size()) {
+            currentLevelBgTexture.loadFromFile(levels[currentLevelIndex].bgImageFile);
+            currentLevelBg.setTexture(currentLevelBgTexture);
+            currentBgMusic.openFromFile(levels[currentLevelIndex].bgMusicFile);
+        }
+    }
+    
+    void playBgMusic() {
+        currentBgMusic.stop();
+        
+        if (soundEnabled) {
+            currentBgMusic.play();
+            currentBgMusic.setLoop(true);
+        }
+    }
+    
     void resetLevel() {
+        // Reset snake to starting position and size (center of screen, away from borders)
         snake.clear();
-        snake.push_back({GRID_WIDTH / 2, GRID_HEIGHT / 2});
-        snake.push_back({GRID_WIDTH / 2 - 1, GRID_HEIGHT / 2});
-        snake.push_back({GRID_WIDTH / 2 - 2, GRID_HEIGHT / 2});
+        int centerX = GRID_WIDTH / 2;
+        int centerY = GRID_HEIGHT / 2;
+        snake.push_back({centerX, centerY});
+        snake.push_back({centerX - 1, centerY});
+        snake.push_back({centerX - 2, centerY});
         
         direction = RIGHT;
         nextDirection = RIGHT;
         
-        // Don't reset score between levels
+        // Reset multipliers to default for new level
         scoreMultiplier = 1.0f;
         speedMultiplier = 1.0f;
         consecutiveActive = false;
@@ -189,65 +303,17 @@ public:
         bonusFoodActive = false;
         bonusFoodSpawnTimer.restart();
         
-        obstacles.clear();
-        setupLevel();
         spawnFood(false);
         
         gameClock.restart();
         moveInterval = 0.15f;
-        
-        if (mode == FREE_PLAY) {
-            levelTarget = -1;
-        } else if (currentLevel == 1) {
-            levelTarget = 50;
-        } else if (currentLevel == 2) {
-            levelTarget = 150;
-        } else {
-            levelTarget = -1; // Level 3 has no target
-        }
     }
     
-    void setupLevel() {
-        obstacles.clear();
-        
-        if (mode == LEVEL_2 || (mode != FREE_PLAY && currentLevel == 2)) {
-            // Simple obstacles
-            for (int i = 10; i < 30; i++) {
-                obstacles.push_back({i, 15});
-            }
-        } else if (mode == LEVEL_3 || (mode != FREE_PLAY && currentLevel == 3)) {
-            // More complex obstacles
-            for (int i = 10; i < 30; i++) {
-                obstacles.push_back({i, 12});
-                obstacles.push_back({i, 18});
-            }
-            for (int i = 12; i < 18; i++) {
-                obstacles.push_back({10, i});
-                obstacles.push_back({30, i});
-            }
+    Level& getCurrentLevel() {
+        if (isFreePlay) {
+            return levels[0]; // Free play uses level 1 layout but no obstacles
         }
-    }
-    
-    void playBgMusic() {
-        bgMusic1.stop();
-        bgMusic2.stop();
-        bgMusic3.stop();
-        
-        if (!soundEnabled) return;
-        
-        if (mode == FREE_PLAY) {
-            bgMusic1.play();
-            bgMusic1.setLoop(true);
-        } else if (currentLevel == 1) {
-            bgMusic1.play();
-            bgMusic1.setLoop(true);
-        } else if (currentLevel == 2) {
-            bgMusic2.play();
-            bgMusic2.setLoop(true);
-        } else if (currentLevel == 3) {
-            bgMusic3.play();
-            bgMusic3.setLoop(true);
-        }
+        return levels[currentLevelIndex];
     }
     
     void spawnFood(bool bonus) {
@@ -261,6 +327,14 @@ public:
             x = rand() % GRID_WIDTH;
             y = rand() % GRID_HEIGHT;
             
+            // Check if inside border area
+            if (!isFreePlay) {
+                if (x == 0 || x == GRID_WIDTH - 1 || y == 0 || y == GRID_HEIGHT - 1) {
+                    valid = false;
+                    continue;
+                }
+            }
+            
             // Check snake collision
             for (const auto& seg : snake) {
                 if (seg.x == x && seg.y == y) {
@@ -270,11 +344,8 @@ public:
             }
             
             // Check obstacle collision
-            for (const auto& obs : obstacles) {
-                if (obs.x == x && obs.y == y) {
-                    valid = false;
-                    break;
-                }
+            if (!isFreePlay && getCurrentLevel().isObstacleAt(x, y)) {
+                valid = false;
             }
             
             // Check collision with other food
@@ -310,37 +381,22 @@ public:
             } else if (state == PLAYING) {
                 handleGameInput(event);
             } else if (state == PAUSED) {
-                // Resume on any key press or mouse click
-                if (event.type == Event::KeyPressed) {
-                    if(event.key.code == Keyboard::Escape || event.key.code == Keyboard::P || event.key.code == Keyboard::Space){
-                        state = previousState;
-                    }
-                    else if(event.key.code == Keyboard::Q){
-                        state = MAIN_MENU;
-                        bgMusic1.stop();
-                    }
+                if (event.type == Event::KeyPressed || event.type == Event::MouseButtonPressed) {
+                    state = previousState;
                 }
             } else if (state == GAME_OVER && enteringName) {
                 handleNameInput(event);
             } else if (state == LEVEL_TRANSITION) {
-                // Skip transition on key press (but not ESC to prevent accidental skips)
                 if (event.type == Event::KeyPressed && event.key.code != Keyboard::Escape) {
-                    currentLevel = nextLevel;
-                    resetLevel();
-                    state = PLAYING;
-                    playBgMusic();
+                    advanceToNextLevel();
                 } else if (event.type == Event::MouseButtonPressed) {
-                    currentLevel = nextLevel;
-                    resetLevel();
-                    state = PLAYING;
-                    playBgMusic();
+                    advanceToNextLevel();
                 }
             } else if (state == GAME_OVER || state == LEADERBOARD || state == SETTINGS) {
                 if (event.type == Event::KeyPressed) {
                     if (event.key.code == Keyboard::Escape || event.key.code == Keyboard::BackSpace) {
                         state = MAIN_MENU;
                     }
-                    // Tab switching in leaderboard
                     if (state == LEADERBOARD) {
                         if (event.key.code == Keyboard::Num1 || event.key.code == Keyboard::Left) {
                             leaderboardTab = 0;
@@ -349,7 +405,6 @@ public:
                         }
                     }
                 }
-                // Mouse clicks for leaderboard tabs
                 if (state == LEADERBOARD && event.type == Event::MouseButtonPressed) {
                     Vector2i mousePos = Mouse::getPosition(window);
                     if (mousePos.y >= 120 && mousePos.y <= 160) {
@@ -364,12 +419,20 @@ public:
         }
     }
     
+    void advanceToNextLevel() {
+        currentLevelIndex = nextLevelIndex;
+        resetLevel();
+        loadLevelAssets();
+        state = PLAYING;
+        playBgMusic();
+    }
+    
     void handleMenuInput(Event& event) {
         if (event.type == Event::KeyPressed) {
             if (event.key.code == Keyboard::Num1 || event.key.code == Keyboard::P) {
-                startGame(LEVEL_1);
+                startGame(false);
             } else if (event.key.code == Keyboard::Num2 || event.key.code == Keyboard::F) {
-                startGame(FREE_PLAY);
+                startGame(true);
             } else if (event.key.code == Keyboard::Num3 || event.key.code == Keyboard::L) {
                 state = LEADERBOARD;
             } else if (event.key.code == Keyboard::Num4 || event.key.code == Keyboard::S) {
@@ -379,16 +442,14 @@ public:
             }
         }
         
-        // Mouse support
         if (event.type == Event::MouseButtonPressed) {
             Vector2i mousePos = Mouse::getPosition(window);
             
-            // Check menu button clicks (y positions: 220, 280, 340, 400, 460)
             if (mousePos.x >= 250 && mousePos.x <= 550) {
                 if (mousePos.y >= 220 && mousePos.y <= 260) {
-                    startGame(LEVEL_1);
+                    startGame(false);
                 } else if (mousePos.y >= 280 && mousePos.y <= 320) {
-                    startGame(FREE_PLAY);
+                    startGame(true);
                 } else if (mousePos.y >= 340 && mousePos.y <= 380) {
                     state = LEADERBOARD;
                 } else if (mousePos.y >= 400 && mousePos.y <= 440) {
@@ -410,7 +471,7 @@ public:
                 nextDirection = LEFT;
             } else if ((event.key.code == Keyboard::Right || event.key.code == Keyboard::D) && direction != LEFT) {
                 nextDirection = RIGHT;
-            } else if (event.key.code == Keyboard::Escape || event.key.code == Keyboard::P || event.key.code == Keyboard::Space) {
+            } else if (event.key.code == Keyboard::Escape || event.key.code == Keyboard::P) {
                 previousState = PLAYING;
                 state = PAUSED;
             }
@@ -419,17 +480,13 @@ public:
     
     void handleNameInput(Event& event) {
         if (event.type == Event::TextEntered) {
-            if (event.text.unicode == 8) { // Backspace
+            if (event.text.unicode == 8) {
                 if (!playerName.empty()) {
                     playerName.pop_back();
                 }
-            } else if (event.text.unicode == 13) { // Enter
+            } else if (event.text.unicode == 13) {
                 if (!playerName.empty()) {
-                    if (mode == FREE_PLAY) {
-                        addToLeaderboard(playerName, score, true);
-                    } else {
-                        addToLeaderboard(playerName, score, false);
-                    }
+                    addToLeaderboard(playerName, score, isFreePlay);
                     saveLeaderboard();
                     enteringName = false;
                     state = LEADERBOARD;
@@ -441,19 +498,7 @@ public:
     }
     
     void update() {
-        // Don't update if paused
-        if (state == PAUSED) {
-            return;
-        }
-        
-        if (state == LEVEL_TRANSITION) {
-            // Auto advance after 3 seconds
-            if (transitionClock.getElapsedTime().asSeconds() >= 3.0f) {
-                currentLevel = nextLevel;
-                resetLevel();
-                state = PLAYING;
-                playBgMusic();
-            }
+        if (state == PAUSED || state == LEVEL_TRANSITION) {
             return;
         }
         
@@ -467,18 +512,15 @@ public:
             moveSnake();
         }
         
-        // Check for bonus food spawn (every 15-25 seconds)
         if (!bonusFoodActive && bonusFoodSpawnTimer.getElapsedTime().asSeconds() >= 15.0f + (rand() % 10)) {
             spawnFood(true);
             bonusFoodSpawnTimer.restart();
         }
         
-        // Check bonus food timeout
         if (bonusFoodActive && bonusFoodTimer.getElapsedTime().asSeconds() >= bonusFoodDuration) {
             bonusFoodActive = false;
         }
         
-        // Check consecutive timer
         if (consecutiveActive && consecutiveTimer.getElapsedTime().asSeconds() >= 2.0f) {
             scoreMultiplier = 1.0f;
             consecutiveActive = false;
@@ -498,17 +540,15 @@ public:
         }
         
         // Handle wrapping for free play
-        if (mode == FREE_PLAY) {
+        if (isFreePlay) {
             if (newHead.x < 0) newHead.x = GRID_WIDTH - 1;
             if (newHead.x >= GRID_WIDTH) newHead.x = 0;
             if (newHead.y < 0) newHead.y = GRID_HEIGHT - 1;
             if (newHead.y >= GRID_HEIGHT) newHead.y = 0;
-        }
-        
-        // Check wall collision (non-free play)
-        if (mode != FREE_PLAY) {
-            if (newHead.x < 0 || newHead.x >= GRID_WIDTH || 
-                newHead.y < 0 || newHead.y >= GRID_HEIGHT) {
+        } else {
+            // Check border collision (treat borders as walls)
+            if (newHead.x <= 0 || newHead.x >= GRID_WIDTH - 1 || 
+                newHead.y <= 0 || newHead.y >= GRID_HEIGHT - 1) {
                 gameOver();
                 return;
             }
@@ -523,11 +563,9 @@ public:
         }
         
         // Check obstacle collision
-        for (const auto& obs : obstacles) {
-            if (obs.x == newHead.x && obs.y == newHead.y) {
-                gameOver();
-                return;
-            }
+        if (!isFreePlay && getCurrentLevel().isObstacleAt(newHead.x, newHead.y)) {
+            gameOver();
+            return;
         }
         
         bool ateFood = false;
@@ -541,27 +579,16 @@ public:
                 eatSound.play();
             }
             
-            // Update multipliers
-            if (consecutiveActive) {
-                scoreMultiplier += 0.2f;
-            } else {
-                consecutiveActive = true;
-                scoreMultiplier = 1.0f;
-            }
-            consecutiveTimer.restart();
+            updateMultipliers();
             
-            if (mode != FREE_PLAY) {
+            if (!isFreePlay) {
                 speedMultiplier += 0.1f;
             }
             
             spawnFood(false);
             ateFood = true;
             
-            // Check level completion
-            if (mode != FREE_PLAY && levelTarget > 0 && score >= levelTarget) {
-                levelComplete();
-                return;
-            }
+            checkLevelCompletion();
         }
         
         // Check bonus food collision
@@ -573,16 +600,9 @@ public:
                 bonusSound.play();
             }
             
-            // Update multipliers
-            if (consecutiveActive) {
-                scoreMultiplier += 0.2f;
-            } else {
-                consecutiveActive = true;
-                scoreMultiplier = 1.0f;
-            }
-            consecutiveTimer.restart();
+            updateMultipliers();
             
-            if (mode != FREE_PLAY) {
+            if (!isFreePlay) {
                 speedMultiplier += 0.1f;
             }
             
@@ -590,11 +610,7 @@ public:
             bonusFoodSpawnTimer.restart();
             ateFood = true;
             
-            // Check level completion
-            if (mode != FREE_PLAY && levelTarget > 0 && score >= levelTarget) {
-                levelComplete();
-                return;
-            }
+            checkLevelCompletion();
         }
         
         snake.push_front(newHead);
@@ -604,22 +620,36 @@ public:
         }
     }
     
+    void updateMultipliers() {
+        if (consecutiveActive) {
+            scoreMultiplier += 0.2f;
+        } else {
+            consecutiveActive = true;
+            scoreMultiplier = 1.0f;
+        }
+        consecutiveTimer.restart();
+    }
+    
+    void checkLevelCompletion() {
+        if (isFreePlay) return;
+        
+        Level& level = getCurrentLevel();
+        if (level.scoreTarget > 0 && score >= level.scoreTarget) {
+            levelComplete();
+        }
+    }
+    
     void levelComplete() {
         if (soundEnabled) {
             levelCompleteSound.play();
         }
         
-        if (currentLevel < 3) {
-            nextLevel = currentLevel + 1;
+        if (currentLevelIndex < levels.size() - 1) {
+            nextLevelIndex = currentLevelIndex + 1;
             state = LEVEL_TRANSITION;
             transitionClock.restart();
-            
-            // Stop music during transition
-            bgMusic1.stop();
-            bgMusic2.stop();
-            bgMusic3.stop();
+            currentBgMusic.stop();
         } else {
-            // Game won!
             gameOver();
         }
     }
@@ -629,14 +659,10 @@ public:
             gameOverSound.play();
         }
         
-        bgMusic1.stop();
-        bgMusic2.stop();
-        bgMusic3.stop();
+        currentBgMusic.stop();
         
-        // Choose correct leaderboard based on mode
-        auto& targetLeaderboard = (mode == FREE_PLAY) ? freePlayLeaderboard : leaderboard;
+        auto& targetLeaderboard = isFreePlay ? freePlayLeaderboard : leaderboard;
         
-        // Check if score qualifies for leaderboard (must be > 0)
         if (score > 0 && (targetLeaderboard.size() < 5 || score > targetLeaderboard.back().second)) {
             enteringName = true;
             playerName = "";
@@ -669,17 +695,16 @@ public:
     }
     
     void renderMainMenu() {
-        // Draw background if available
         if (menuBgTexture.getSize().x > 0) {
             window.draw(menuBg);
         }
         
-        Text title("SNAKE_BYTE", font, 60);
+        Text title("SNAKEBYTE", font, 60);
         title.setFillColor(Color::Green);
         title.setPosition(WINDOW_WIDTH / 2 - 150, 50);
         window.draw(title);
         
-        Text subtitle("A classic Snake Game", font, 20);
+        Text subtitle("Classic Snake Game", font, 20);
         subtitle.setFillColor(Color(150, 150, 150));
         subtitle.setPosition(WINDOW_WIDTH / 2 - 100, 130);
         window.draw(subtitle);
@@ -698,7 +723,6 @@ public:
             Text option(options[i], font, 24);
             int yPos = 220 + i * 60;
             
-            // Highlight on hover
             if (mousePos.x >= 250 && mousePos.x <= 550 && 
                 mousePos.y >= yPos && mousePos.y <= yPos + 40) {
                 option.setFillColor(Color::Yellow);
@@ -717,56 +741,78 @@ public:
     }
     
     void renderGame() {
-        // Draw background based on level
-        if (mode == FREE_PLAY) {
-            if (level1BgTexture.getSize().x > 0) {
-                window.draw(level1Bg);
+        if (currentLevelBgTexture.getSize().x > 0) {
+            window.draw(currentLevelBg);
+        }
+        
+        Color wallColor(96, 26, 48); // #601a30
+        Color wallBorderColor(150, 50, 80); // Lighter shade for brick effect
+        
+        // Draw borders as grid squares with brick effect
+        if (!isFreePlay) {
+            // Top border
+            for (int i = 0; i < GRID_WIDTH; i++) {
+                RectangleShape borderSquare(Vector2f(GRID_SIZE - 2, GRID_SIZE - 2));
+                borderSquare.setPosition(i * GRID_SIZE + 1, 1);
+                borderSquare.setFillColor(wallColor);
+                borderSquare.setOutlineColor(wallBorderColor);
+                borderSquare.setOutlineThickness(1);
+                window.draw(borderSquare);
             }
-        } else if (currentLevel == 1) {
-            if (level1BgTexture.getSize().x > 0) {
-                window.draw(level1Bg);
+            
+            // Bottom border
+            for (int i = 0; i < GRID_WIDTH; i++) {
+                RectangleShape borderSquare(Vector2f(GRID_SIZE - 2, GRID_SIZE - 2));
+                borderSquare.setPosition(i * GRID_SIZE + 1, (GRID_HEIGHT - 1) * GRID_SIZE + 1);
+                borderSquare.setFillColor(wallColor);
+                borderSquare.setOutlineColor(wallBorderColor);
+                borderSquare.setOutlineThickness(1);
+                window.draw(borderSquare);
             }
-        } else if (currentLevel == 2) {
-            if (level2BgTexture.getSize().x > 0) {
-                window.draw(level2Bg);
+            
+            // Left border
+            for (int i = 1; i < GRID_HEIGHT - 1; i++) {
+                RectangleShape borderSquare(Vector2f(GRID_SIZE - 2, GRID_SIZE - 2));
+                borderSquare.setPosition(1, i * GRID_SIZE + 1);
+                borderSquare.setFillColor(wallColor);
+                borderSquare.setOutlineColor(wallBorderColor);
+                borderSquare.setOutlineThickness(1);
+                window.draw(borderSquare);
             }
-        } else if (currentLevel == 3) {
-            if (level3BgTexture.getSize().x > 0) {
-                window.draw(level3Bg);
+            
+            // Right border
+            for (int i = 1; i < GRID_HEIGHT - 1; i++) {
+                RectangleShape borderSquare(Vector2f(GRID_SIZE - 2, GRID_SIZE - 2));
+                borderSquare.setPosition((GRID_WIDTH - 1) * GRID_SIZE + 1, i * GRID_SIZE + 1);
+                borderSquare.setFillColor(wallColor);
+                borderSquare.setOutlineColor(wallBorderColor);
+                borderSquare.setOutlineThickness(1);
+                window.draw(borderSquare);
+            }
+            
+            // Draw obstacles as grid squares with brick effect
+            for (const auto& obs : getCurrentLevel().obstacles) {
+                RectangleShape rect(Vector2f(GRID_SIZE - 2, GRID_SIZE - 2));
+                rect.setPosition(obs.x * GRID_SIZE + 1, obs.y * GRID_SIZE + 1);
+                rect.setFillColor(wallColor);
+                rect.setOutlineColor(wallBorderColor);
+                rect.setOutlineThickness(1);
+                window.draw(rect);
             }
         }
         
-        // Draw borders for non-free play with thicker, more visible border
-        if (mode != FREE_PLAY) {
-            RectangleShape border(Vector2f(WINDOW_WIDTH - 8, WINDOW_HEIGHT - 8));
-            border.setPosition(4, 4);
-            border.setFillColor(Color::Transparent);
-            border.setOutlineColor(Color(0, 255, 0)); // Bright green border
-            border.setOutlineThickness(4);
-            window.draw(border);
-        }
-        
-        // Draw obstacles
-        for (const auto& obs : obstacles) {
-            RectangleShape rect(Vector2f(GRID_SIZE - 2, GRID_SIZE - 2));
-            rect.setPosition(obs.x * GRID_SIZE + 1, obs.y * GRID_SIZE + 1);
-            rect.setFillColor(Color(150, 50, 50));
-            window.draw(rect);
-        }
-        
-        // Draw normal food (circular)
+        // Draw normal food
         CircleShape foodCircle(GRID_SIZE / 2 - 2);
         foodCircle.setPosition(food.x * GRID_SIZE + 2, food.y * GRID_SIZE + 2);
         foodCircle.setFillColor(Color::Red);
         window.draw(foodCircle);
         
-        // Draw bonus food if active (circular with pulsing animation)
+        // Draw bonus food with animation
         if (bonusFoodActive) {
             float pulseTime = bonusFoodTimer.getElapsedTime().asSeconds();
-            float scale = 1.0f + 0.2f * sin(pulseTime * 6.0f); // Pulsing effect
+            float scale = 1.0f + 0.2f * sin(pulseTime * 6.0f);
             
             CircleShape bonusFoodCircle(GRID_SIZE / 2 + 2);
-            bonusFoodCircle.setPosition(bonusFood.x * GRID_SIZE - 2, bonusFood.y * GRID_SIZE - 2);
             bonusFoodCircle.setScale(scale, scale);
             bonusFoodCircle.setFillColor(Color::Yellow);
             bonusFoodCircle.setOrigin(GRID_SIZE / 2 + 2, GRID_SIZE / 2 + 2);
@@ -775,29 +821,29 @@ public:
             window.draw(bonusFoodCircle);
         }
         
-        // Draw snake
+        // Draw snake with visible grid squares
         for (size_t i = 0; i < snake.size(); i++) {
             RectangleShape rect(Vector2f(GRID_SIZE - 2, GRID_SIZE - 2));
             rect.setPosition(snake[i].x * GRID_SIZE + 1, snake[i].y * GRID_SIZE + 1);
             rect.setFillColor(i == 0 ? Color::Green : Color(0, 200, 0));
+            rect.setOutlineColor(Color(0, 150, 0));
+            rect.setOutlineThickness(1);
             window.draw(rect);
         }
         
-        // Draw score
+        // Draw UI (outside borders)
         Text scoreText("Score: " + std::to_string(score), font, 20);
         scoreText.setFillColor(Color::White);
         scoreText.setPosition(10, 10);
         window.draw(scoreText);
         
-        // Draw multiplier
         Text multText("x" + std::to_string(scoreMultiplier).substr(0, 4), font, 20);
         multText.setFillColor(Color::Yellow);
         multText.setPosition(10, 35);
         window.draw(multText);
         
-        // Draw level
-        if (mode != FREE_PLAY) {
-            Text levelText("Level: " + std::to_string(currentLevel), font, 20);
+        if (!isFreePlay) {
+            Text levelText("Level: " + std::to_string(getCurrentLevel().levelNumber), font, 20);
             levelText.setFillColor(Color::White);
             levelText.setPosition(WINDOW_WIDTH - 120, 10);
             window.draw(levelText);
@@ -810,12 +856,11 @@ public:
     }
     
     void renderLevelTransition() {
-        // Draw background if available
         if (transitionBgTexture.getSize().x > 0) {
             window.draw(transitionBg);
         }
         
-        Text title("LEVEL " + std::to_string(currentLevel) + " COMPLETE!", font, 50);
+        Text title("LEVEL " + std::to_string(levels[currentLevelIndex].levelNumber) + " COMPLETE!", font, 50);
         title.setFillColor(Color::Green);
         title.setPosition(WINDOW_WIDTH / 2 - 250, 150);
         window.draw(title);
@@ -825,24 +870,27 @@ public:
         scoreText.setPosition(WINDOW_WIDTH / 2 - 100, 250);
         window.draw(scoreText);
         
-        Text nextText("Advancing to Level " + std::to_string(nextLevel), font, 35);
+        Text nextText("Advancing to Level " + std::to_string(levels[nextLevelIndex].levelNumber), font, 35);
         nextText.setFillColor(Color::Yellow);
         nextText.setPosition(WINDOW_WIDTH / 2 - 180, 350);
         window.draw(nextText);
         
-        Text hint("Press any key to continue...", font, 20);
-        hint.setFillColor(Color(150, 150, 150));
-        hint.setPosition(WINDOW_WIDTH / 2 - 120, 450);
+        Text resetInfo("Snake reset to default size and speed", font, 20);
+        resetInfo.setFillColor(Color(150, 200, 150));
+        resetInfo.setPosition(WINDOW_WIDTH / 2 - 180, 400);
+        window.draw(resetInfo);
+        
+        Text hint("Press any key to continue...", font, 22);
+        hint.setFillColor(Color::White);
+        hint.setPosition(WINDOW_WIDTH / 2 - 130, 480);
         window.draw(hint);
     }
     
     void renderPauseOverlay() {
-        // Draw semi-transparent overlay
         RectangleShape overlay(Vector2f(WINDOW_WIDTH, WINDOW_HEIGHT));
         overlay.setFillColor(Color(0, 0, 0, 180));
         window.draw(overlay);
         
-        // Draw pause background if available
         if (pauseBgTexture.getSize().x > 0) {
             pauseBg.setColor(Color(255, 255, 255, 200));
             window.draw(pauseBg);
@@ -853,7 +901,7 @@ public:
         title.setPosition(WINDOW_WIDTH / 2 - 180, 200);
         window.draw(title);
         
-        Text hint("Press ESC/P/Space to continue \n Press Q to return to Main Menu", font, 25);
+        Text hint("Press any key to continue", font, 25);
         hint.setFillColor(Color::White);
         hint.setPosition(WINDOW_WIDTH / 2 - 150, 320);
         window.draw(hint);
@@ -863,7 +911,7 @@ public:
         controls.setPosition(WINDOW_WIDTH / 2 - 140, 400);
         window.draw(controls);
         
-        Text pauseKey("Pause: ESC/P/Space", font, 20);
+        Text pauseKey("Pause: ESC or P", font, 20);
         pauseKey.setFillColor(Color(200, 200, 200));
         pauseKey.setPosition(WINDOW_WIDTH / 2 - 80, 430);
         window.draw(pauseKey);
@@ -899,12 +947,15 @@ public:
     }
     
     void renderLeaderboard() {
+        if (leaderboardBgTexture.getSize().x > 0) {
+            window.draw(leaderboardBg);
+        }
+        
         Text title("LEADERBOARD", font, 50);
         title.setFillColor(Color::Yellow);
         title.setPosition(WINDOW_WIDTH / 2 - 180, 50);
         window.draw(title);
         
-        // Tab buttons
         Vector2i mousePos = Mouse::getPosition(window);
         
         RectangleShape normalTab(Vector2f(150, 40));
@@ -935,7 +986,6 @@ public:
         freeText.setPosition(475, 130);
         window.draw(freeText);
         
-        // Display leaderboard based on active tab
         auto& activeLeaderboard = (leaderboardTab == 0) ? leaderboard : freePlayLeaderboard;
         
         for (size_t i = 0; i < activeLeaderboard.size() && i < 5; i++) {
@@ -955,6 +1005,10 @@ public:
     }
     
     void renderSettings() {
+        if (settingsBgTexture.getSize().x > 0) {
+            window.draw(settingsBg);
+        }
+        
         Text title("SETTINGS", font, 50);
         title.setFillColor(Color::Cyan);
         title.setPosition(WINDOW_WIDTH / 2 - 120, 100);
@@ -978,11 +1032,42 @@ public:
         if (Keyboard::isKeyPressed(Keyboard::S)) {
             soundEnabled = !soundEnabled;
             if (!soundEnabled) {
-                bgMusic1.stop();
-                bgMusic2.stop();
-                bgMusic3.stop();
+                currentBgMusic.stop();
             }
+            saveSettings();
             sleep(milliseconds(200));
+        }
+    }
+    
+    void loadSettings() {
+        std::ifstream file("settings.json");
+        if (file.is_open()) {
+            try {
+                json j;
+                file >> j;
+                if (j.contains("sound")) {
+                    soundEnabled = j["sound"];
+                }
+            } catch (...) {
+                soundEnabled = true;
+                saveSettings();
+            }
+            file.close();
+        } else {
+            // No settings file, create with defaults
+            soundEnabled = true;
+            saveSettings();
+        }
+    }
+    
+    void saveSettings() {
+        json j;
+        j["sound"] = soundEnabled;
+        
+        std::ofstream file("settings.json");
+        if (file.is_open()) {
+            file << j.dump(4);
+            file.close();
         }
     }
     

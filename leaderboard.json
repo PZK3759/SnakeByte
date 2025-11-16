@@ -1,6 +1,10 @@
 {
     "freeplay": [
         {
+            "name": "Zahin",
+            "score": 230
+        },
+        {
             "name": "zahin",
             "score": 52
         },
@@ -14,10 +18,14 @@
         },
         {
             "name": "zahin",
-            "score": 20
+            "score": 22
         }
     ],
     "normal": [
+        {
+            "name": "zahin",
+            "score": 77
+        },
         {
             "name": "zahin",
             "score": 48
@@ -28,15 +36,11 @@
         },
         {
             "name": "zahin",
-            "score": 20
+            "score": 34
         },
         {
             "name": "zahin",
-            "score": 10
-        },
-        {
-            "name": "zahin",
-            "score": 10
+            "score": 32
         }
     ]
 }
