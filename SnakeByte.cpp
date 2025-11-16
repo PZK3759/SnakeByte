@@ -739,7 +739,8 @@ public:
         }
         
         Text title("SNAKE_BYTE", font, 60);
-        title.setFillColor(Color::Green);
+        title.setFillColor(Color(43, 69, 45));
+        title.setOutlineColor(Color::White);
         title.setPosition(WINDOW_WIDTH / 2 - 150, 50);
         window.draw(title);
         
