@@ -233,34 +233,35 @@ public:
     void initializeLevels() {
 
         //TODO: Add more levels
-
-        std::string music1 = "assets/audios/music1.ogg";
+        //TODO: Adjust Level targets
+        std::string music1 = "assets/audios/genesis_flash.ogg";
+        std::string music2 = "assets/audios/8bit_dash.ogg";
+        std::string music3 = "assets/audios/arcade-speed-run.ogg";
         std::string bg1 = "assets/images/level1_bg.png";
-
-        // Level 1: Simple box border, target score 100 (to be adjusted)
-        Level level1(1, 100, "Level 1", music1, bg1, 
+        
+        Level level1(1, 50, "Level 1", music1, bg1, 
                      Color(0, 255, 0), 4.0f, true);
         levels.push_back(level1);
         
-        // Level 2: Add obstacles, target score 200 (to be adjusted)
-        Level level2(2, 200, "Level 2", music1, bg1,
+        
+        Level level2(2, 100, "Level 2", music2, bg1,
                      Color(255, 255, 0), 4.0f, true);
         level2.setupDefaultObstacles();
         levels.push_back(level2);
         
-        // Level 3: More complex obstacles, no target (play until death)
-        Level level3(3, -1, "Level 3", music1, bg1,
+        
+        Level level3(3, -1, "Level 3", music3, bg1,
                      Color(255, 100, 0), 5.0f, true);
         level3.setupDefaultObstacles();
         levels.push_back(level3);
     }
     
     void initAudio() {
-        eatBuffer.loadFromFile("eat.wav");
-        bonusBuffer.loadFromFile("bonus.wav");
+        eatBuffer.loadFromFile("assets/audios/sound-effects/eat.wav");
+        bonusBuffer.loadFromFile("assets/audios/sound-effects/bonus_eat.wav");
         collisionBuffer.loadFromFile("collision.wav");
-        gameOverBuffer.loadFromFile("gameover.wav");
-        levelCompleteBuffer.loadFromFile("levelcomplete.wav");
+        gameOverBuffer.loadFromFile("assets/audios/sound-effects/gameover2.wav");
+        levelCompleteBuffer.loadFromFile("assets/audios/sound-effects/levelcomplete2.wav");
         
         eatSound.setBuffer(eatBuffer);
         bonusSound.setBuffer(bonusBuffer);
@@ -420,8 +421,12 @@ public:
             } else if (state == GAME_OVER && enteringName) {
                 handleNameInput(event);
             } else if (state == LEVEL_TRANSITION) {
-                if (event.type == Event::KeyPressed && event.key.code != Keyboard::Escape) {
-                    advanceToNextLevel();
+                if (event.type == Event::KeyPressed) {
+
+                    if(event.key.code == Keyboard::Space || event.key.code == Keyboard::Enter){
+                        advanceToNextLevel();
+                    }
+                    
                 } else if (event.type == Event::MouseButtonPressed) {
                     advanceToNextLevel();
                 }
@@ -985,7 +990,7 @@ public:
         resetInfo.setPosition(WINDOW_WIDTH / 2 - 180, 400);
         window.draw(resetInfo);
         
-        Text hint("Press any key to continue...", font, 22);
+        Text hint("Press Space or Enter to continue...", font, 22);
         hint.setFillColor(Color::White);
         hint.setPosition(WINDOW_WIDTH / 2 - 130, 480);
         window.draw(hint);
