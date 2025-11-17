@@ -84,6 +84,15 @@ public:
         for (int i = 25; i < 35; i++) {
             addObstacle(i, PLAYFIELD_START_ROW + 17); // Add offset
         }
+
+        for(int i = 5; i < 15;i++){
+            addObstacle(i, PLAYFIELD_START_ROW + 17);
+        }
+
+        for(int i = 25; i < 35;i++){
+            addObstacle(i, PLAYFIELD_START_ROW + 7);
+        }
+        
     } else if (levelNumber == 3) {
         // Level 3: Corner obstacles (adjusted for playfield)
         // Top-left corner
@@ -239,12 +248,11 @@ public:
         std::string music3 = "assets/audios/arcade-speed-run.ogg";
         std::string bg1 = "assets/images/level1_bg.png";
         
-        Level level1(1, 50, "Level 1", music1, bg1, 
+        Level level1(1, 20, "Level 1", music1, bg1, 
                      Color(0, 255, 0), 4.0f, true);
         levels.push_back(level1);
         
-        
-        Level level2(2, 100, "Level 2", music2, bg1,
+        Level level2(2, 50, "Level 2", music2, bg1,
                      Color(255, 255, 0), 4.0f, true);
         level2.setupDefaultObstacles();
         levels.push_back(level2);
