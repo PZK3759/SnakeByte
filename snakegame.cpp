@@ -27,6 +27,7 @@ SnakeGame::SnakeGame() : window(VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "SnakeBy
     leaderboardBgTexture.loadFromFile("assets/images/menu_bg.png");
     settingsBgTexture.loadFromFile("assets/images/menu_bg.png");
     uiAreaBgTexture.loadFromFile("ui_area_bg.png");
+    levelSelectBgTexture.loadFromFile("level_select_bg.png");
 
     menuBg.setTexture(menuBgTexture);
     transitionBg.setTexture(transitionBgTexture);
@@ -35,6 +36,7 @@ SnakeGame::SnakeGame() : window(VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "SnakeBy
     settingsBg.setTexture(settingsBgTexture);
     uiAreaBg.setTexture(uiAreaBgTexture);
     uiAreaBg.setTextureRect(IntRect(0, 0, WINDOW_WIDTH, UI_AREA_HEIGHT));
+    levelSelectBg.setTexture(levelSelectBgTexture);
     
     loadSettings();
     state = MAIN_MENU;
@@ -43,6 +45,7 @@ SnakeGame::SnakeGame() : window(VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "SnakeBy
     leaderboardTab = 0;
     previousState = MAIN_MENU;
     isFreePlay = false;
+    isLevelSelectMode = false;
     
     loadLeaderboard();
     initAudio();
@@ -197,7 +200,10 @@ void SnakeGame::handleInput() {
         
         if (state == MAIN_MENU) {
             handleMenuInput(event);
-        } else if (state == PLAYING) {
+        } else if (state == LEVEL_SELECT) { 
+            handleLevelSelectInput(event);
+        } 
+        else if (state == PLAYING) {
             handleGameInput(event);
         } else if (state == PAUSED) {
             if (event.type == Event::KeyPressed) {
@@ -259,28 +265,76 @@ void SnakeGame::handleMenuInput(Event& event) {
             startGame(false);
         } else if (event.key.code == Keyboard::Num2 || event.key.code == Keyboard::F) {
             startGame(true);
-        } else if (event.key.code == Keyboard::Num3 || event.key.code == Keyboard::L) {
+        } else if (event.key.code == Keyboard::Num3 || event.key.code == Keyboard::V) {
+            state = LEVEL_SELECT;  // NEW
+        } else if (event.key.code == Keyboard::Num4 || event.key.code == Keyboard::L) {
             state = LEADERBOARD;
-        } else if (event.key.code == Keyboard::Num4 || event.key.code == Keyboard::S) {
+        } else if (event.key.code == Keyboard::Num5 || event.key.code == Keyboard::S) {
             state = SETTINGS;
-        } else if (event.key.code == Keyboard::Num5 || event.key.code == Keyboard::Escape || event.key.code == Keyboard::Q) {
+        } else if (event.key.code == Keyboard::Num0 || event.key.code == Keyboard::Escape || event.key.code == Keyboard::Q) {
             window.close();
         }
     }
     
     if (event.type == Event::MouseButtonPressed) {
         Vector2i mousePos = Mouse::getPosition(window);
-        if (mousePos.x >= 250 && mousePos.x <= 550) {
-            if (mousePos.y >= 220 && mousePos.y <= 260) {
+        
+        if (mousePos.x >= 200 && mousePos.x <= 600) {
+            // Option 1: Play Levels (y: 200-245)
+            if (mousePos.y >= 200 && mousePos.y <= 245) {
                 startGame(false);
-            } else if (mousePos.y >= 280 && mousePos.y <= 320) {
+            } 
+            // Option 2: Free Play (y: 255-300)
+            else if (mousePos.y >= 255 && mousePos.y <= 300) {
                 startGame(true);
-            } else if (mousePos.y >= 340 && mousePos.y <= 380) {
+            } 
+            // Option 3: Level Select (y: 310-355)
+            else if (mousePos.y >= 310 && mousePos.y <= 355) {
+                state = LEVEL_SELECT;
+            } 
+            // Option 4: Leaderboard (y: 365-410)
+            else if (mousePos.y >= 365 && mousePos.y <= 410) {
                 state = LEADERBOARD;
-            } else if (mousePos.y >= 400 && mousePos.y <= 440) {
+            } 
+            // Option 5: Settings (y: 420-465)
+            else if (mousePos.y >= 420 && mousePos.y <= 465) {
                 state = SETTINGS;
-            } else if (mousePos.y >= 460 && mousePos.y <= 500) {
+            } 
+            // Option 6: Exit (y: 475-520)
+            else if (mousePos.y >= 475 && mousePos.y <= 520) {
                 window.close();
+            }
+        }
+    }
+}
+
+
+void SnakeGame::handleLevelSelectInput(Event& event) {
+    if (event.type == Event::KeyPressed) {
+        if (event.key.code == Keyboard::Escape || event.key.code == Keyboard::BackSpace) {
+            state = MAIN_MENU;
+            return;
+        }
+        
+        // Select level by number key
+        if (event.key.code >= Keyboard::Num1 && event.key.code <= Keyboard::Num9) {
+            int selectedLevel = event.key.code - Keyboard::Num1;  // 0-based
+            if (selectedLevel < levels.size()) {
+                startLevelFromSelect(selectedLevel);
+            }
+        }
+    }
+    
+    if (event.type == Event::MouseButtonPressed) {
+        Vector2i mousePos = Mouse::getPosition(window);
+        
+        // Check level button clicks
+        for (size_t i = 0; i < levels.size(); i++) {
+            int yPos = 150 + i * 80;
+            if (mousePos.x >= 200 && mousePos.x <= 600 && 
+                mousePos.y >= yPos && mousePos.y <= yPos + 60) {
+                startLevelFromSelect(i);
+                break;
             }
         }
     }
@@ -320,6 +374,17 @@ void SnakeGame::handleNameInput(Event& event) {
             playerName += static_cast<char>(event.text.unicode);
         }
     }
+}
+
+void SnakeGame::startLevelFromSelect(int levelIndex) {
+    isFreePlay = false;
+    isLevelSelectMode = true;  // Mark as level select mode
+    currentLevelIndex = levelIndex;
+    score = 0;
+    resetLevel();
+    loadLevelAssets();
+    state = PLAYING;
+    playBgMusic();
 }
 
 void SnakeGame::update() {
@@ -427,7 +492,7 @@ void SnakeGame::updateMultipliers() {
 }
 
 void SnakeGame::checkLevelCompletion() {
-    if (isFreePlay) return;
+    if (isFreePlay || isLevelSelectMode) return;
     Level& level = getCurrentLevel();
     if (level.scoreTarget > 0 && score >= level.scoreTarget) {
         levelComplete();
@@ -447,14 +512,26 @@ void SnakeGame::levelComplete() {
 }
 
 void SnakeGame::gameOver() {
-    if (soundEnabled) gameOverSound.play();
-    currentBgMusic.stop();
-    auto& targetLeaderboard = isFreePlay ? freePlayLeaderboard : leaderboard;
-    if (score > 0 && (targetLeaderboard.size() < 5 || score > targetLeaderboard.back().second)) {
-        enteringName = true;
-        playerName = "";
+    if (soundEnabled) {
+        gameOverSound.play();
     }
+    
+    currentBgMusic.stop();
+    
+    // Don't add to leaderboard if in level select mode
+    if (!isLevelSelectMode) {  // NEW CHECK
+        auto& targetLeaderboard = isFreePlay ? freePlayLeaderboard : leaderboard;
+        
+        if (score > 0 && (targetLeaderboard.size() < 5 || score > targetLeaderboard.back().second)) {
+            enteringName = true;
+            playerName = "";
+        }
+    }
+    
     state = GAME_OVER;
+    
+    // Reset level select mode flag
+    isLevelSelectMode = false;
 }
 
 void SnakeGame::render() {
@@ -462,6 +539,8 @@ void SnakeGame::render() {
     
     if (state == MAIN_MENU) {
         renderMainMenu();
+    } else if (state == LEVEL_SELECT) {  // NEW
+        renderLevelSelect();
     } else if (state == PLAYING || state == PAUSED) {
         renderGame();
         if (state == PAUSED) renderPauseOverlay();
@@ -479,38 +558,43 @@ void SnakeGame::render() {
 }
 
 void SnakeGame::renderMainMenu() {
-    if (menuBgTexture.getSize().x > 0) window.draw(menuBg);
+    if (menuBgTexture.getSize().x > 0) {
+        window.draw(menuBg);
+    }
     
-    Text title("SNAKE_BYTE", font, 60);
-    title.setFillColor(Color(43, 69, 45));
-    title.setOutlineColor(Color::White);
+    Text title("SNAKEBYTE", font, 60);
+    title.setFillColor(Color::Green);
     title.setPosition(WINDOW_WIDTH / 2 - 150, 50);
     window.draw(title);
     
-    Text subtitle("A classic Snake Game", font, 20);
+    Text subtitle("Classic Snake Game", font, 20);
     subtitle.setFillColor(Color(150, 150, 150));
     subtitle.setPosition(WINDOW_WIDTH / 2 - 100, 130);
     window.draw(subtitle);
     
     std::vector<std::string> options = {
-        "1. Play Quest (Press 1 or P)",
+        "1. Play Levels (Press 1 or P)",
         "2. Free Play (Press 2 or F)",
-        "3. Leaderboard (Press 3 or L)",
-        "4. Settings (Press 4 or S)",
-        "5. Exit (Press 5 or Q)"
+        "3. Level Select (Press 3 or V)",
+        "4. Leaderboard (Press 4 or L)",
+        "5. Settings (Press 5 or S)",
+        "0. Exit (Press 0 or Q)"
     };
     
     Vector2i mousePos = Mouse::getPosition(window);
     
     for (size_t i = 0; i < options.size(); i++) {
-        Text option(options[i], font, 24);
-        int yPos = 220 + i * 60;
-        if (mousePos.x >= 250 && mousePos.x <= 550 && mousePos.y >= yPos && mousePos.y <= yPos + 40) {
+        Text option(options[i], font, 22);  // Slightly smaller font
+        int yPos = 200 + i * 55;  // More spacing between options
+        
+        if (mousePos.x >= 200 && mousePos.x <= 600 && 
+            mousePos.y >= yPos && mousePos.y <= yPos + 45) {
             option.setFillColor(Color::Yellow);
         } else {
             option.setFillColor(Color::White);
         }
-        option.setPosition(WINDOW_WIDTH / 2 - 180, yPos);
+        
+        option.setPosition(200, yPos);  // Align to left for consistency
         window.draw(option);
     }
     
@@ -519,6 +603,60 @@ void SnakeGame::renderMainMenu() {
     hint.setPosition(WINDOW_WIDTH / 2 - 130, 540);
     window.draw(hint);
 }
+
+void SnakeGame::renderLevelSelect() {
+    if (levelSelectBgTexture.getSize().x > 0) {
+        window.draw(levelSelectBg);
+    }
+    
+    Text title("SELECT LEVEL", font, 50);
+    title.setFillColor(Color::Cyan);
+    title.setPosition(WINDOW_WIDTH / 2 - 150, 50);
+    window.draw(title);
+    
+    Vector2i mousePos = Mouse::getPosition(window);
+    
+    // Draw level buttons
+    for (size_t i = 0; i < levels.size(); i++) {
+        int yPos = 150 + i * 80;
+        
+        // Level button background
+        RectangleShape levelButton(Vector2f(400, 60));
+        levelButton.setPosition(200, yPos);
+        
+        // Highlight on hover
+        if (mousePos.x >= 200 && mousePos.x <= 600 && 
+            mousePos.y >= yPos && mousePos.y <= yPos + 60) {
+            levelButton.setFillColor(Color(0, 100, 150));
+            levelButton.setOutlineColor(Color::Cyan);
+            levelButton.setOutlineThickness(3);
+        } else {
+            levelButton.setFillColor(Color(50, 50, 70));
+            levelButton.setOutlineColor(Color(100, 100, 120));
+            levelButton.setOutlineThickness(2);
+        }
+        window.draw(levelButton);
+        
+        // Level name and info
+        std::string levelText = std::to_string(i + 1) + ". " + levels[i].name;
+        // if (levels[i].scoreTarget > 0) {
+        //     levelText += " - Target: " + std::to_string(levels[i].scoreTarget);
+        // } else {
+        //     levelText += " - Endless";
+        // }
+        
+        Text levelName(levelText, font, 28);
+        levelName.setFillColor(Color::White);
+        levelName.setPosition(220, yPos + 15);
+        window.draw(levelName);
+    }
+    
+    Text hint("Press ESC to return to main menu", font, 20);
+    hint.setFillColor(Color(150, 150, 150));
+    hint.setPosition(WINDOW_WIDTH / 2 - 150, 520);
+    window.draw(hint);
+}
+
 
 void SnakeGame::renderGame() {
     if (uiAreaBgTexture.getSize().x > 0) window.draw(uiAreaBg);

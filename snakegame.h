@@ -24,7 +24,7 @@ const int UI_AREA_HEIGHT = UI_ROWS * GRID_SIZE;
 
 // Enums
 enum Direction { UP, DOWN, LEFT, RIGHT };
-enum GameState { MAIN_MENU, PLAYING, GAME_OVER, LEADERBOARD, SETTINGS, LEVEL_TRANSITION, PAUSED };
+enum GameState { MAIN_MENU, PLAYING, GAME_OVER, LEADERBOARD, SETTINGS, LEVEL_TRANSITION, PAUSED, LEVEL_SELECT };
 
 // Structures
 struct SnakeSegment {
@@ -45,8 +45,8 @@ private:
     Font font;
     
     // Background textures and sprites
-    Texture menuBgTexture, transitionBgTexture, pauseBgTexture, leaderboardBgTexture, settingsBgTexture, uiAreaBgTexture;
-    Sprite menuBg, transitionBg, pauseBg, leaderboardBg, settingsBg, uiAreaBg;
+    Texture menuBgTexture, transitionBgTexture, pauseBgTexture, leaderboardBgTexture, settingsBgTexture, uiAreaBgTexture,levelSelectBgTexture;
+    Sprite menuBg, transitionBg, pauseBg, leaderboardBg, settingsBg, uiAreaBg, levelSelectBg;
     
     // Level system
     std::vector<Level> levels;
@@ -58,6 +58,7 @@ private:
     // Game state
     GameState state;
     bool isFreePlay;
+    bool isLevelSelectMode;
     
     // Snake
     std::deque<SnakeSegment> snake;
@@ -114,8 +115,10 @@ private:
     void handleInput();
     void advanceToNextLevel();
     void handleMenuInput(Event& event);
+    void handleLevelSelectInput(Event& event);
     void handleGameInput(Event& event);
     void handleNameInput(Event& event);
+    void startLevelFromSelect(int levelIndex);
     void update();
     void moveSnake();
     void updateMultipliers();
@@ -124,6 +127,7 @@ private:
     void gameOver();
     void render();
     void renderMainMenu();
+    void renderLevelSelect();
     void renderGame();
     void renderLevelTransition();
     void renderPauseOverlay();
@@ -137,13 +141,10 @@ private:
     void addToLeaderboard(const std::string& name, int newScore, bool isFreePlay);
 
 public:
-    // Constructor
-    SnakeGame();
     
+    SnakeGame();
     // Main game loop
     void run();
-    
-    // Public methods
     void startGame(bool freePlay);
 };
 

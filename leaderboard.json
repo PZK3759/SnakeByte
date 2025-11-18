@@ -23,24 +23,24 @@
     ],
     "normal": [
         {
+            "name": "zahin",
+            "score": 136
+        },
+        {
+            "name": "zahin",
+            "score": 112
+        },
+        {
             "name": "Kenji",
             "score": 106
         },
         {
+            "name": "zahin",
+            "score": 94
+        },
+        {
             "name": "Mosha",
             "score": 82
-        },
-        {
-            "name": "zahin",
-            "score": 77
-        },
-        {
-            "name": "Ipman",
-            "score": 54
-        },
-        {
-            "name": "Arifin",
-            "score": 52
         }
     ]
 }

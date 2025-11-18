@@ -1,6 +1,6 @@
 #include "level.h"
 
-// Constructor implementation
+
 Level::Level(int num, int target, const std::string& levelName, 
              const std::string& music, const std::string& bgImage,
              Color borderCol, float thickness, bool showBorder)
@@ -8,12 +8,12 @@ Level::Level(int num, int target, const std::string& levelName,
       bgMusicFile(music), bgImageFile(bgImage), 
       borderColor(borderCol), borderThickness(thickness), hasBorder(showBorder) {}
 
-// Add obstacle to level
+
 void Level::addObstacle(int x, int y) {
     obstacles.push_back({x, y});
 }
 
-// Clear all obstacles
+
 void Level::clearObstacles() {
     obstacles.clear();
 }
@@ -25,7 +25,7 @@ void Level::setupDefaultObstacles(int playfieldStartRow) {
     clearObstacles();
     
     if (levelNumber == 2) {
-        // Level 2: Horizontal walls (adjusted for playfield)
+        
         for (int i = 5; i < 15; i++) {
             addObstacle(i, playfieldStartRow + 7);  // Add offset
         }
@@ -42,7 +42,7 @@ void Level::setupDefaultObstacles(int playfieldStartRow) {
         }
         
     } else if (levelNumber == 3) {
-        // Level 3: Corner obstacles (adjusted for playfield)
+        
         // Top-left corner
         for (int i = 2; i < 8; i++) {
             for (int j = playfieldStartRow + 2; j < playfieldStartRow + 6; j++) {
