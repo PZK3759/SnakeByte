@@ -45,8 +45,8 @@ private:
     Font font;
     
     // Background textures and sprites
-    Texture menuBgTexture, transitionBgTexture, pauseBgTexture, leaderboardBgTexture, settingsBgTexture, uiAreaBgTexture,levelSelectBgTexture;
-    Sprite menuBg, transitionBg, pauseBg, leaderboardBg, settingsBg, uiAreaBg, levelSelectBg;
+    Texture menuBgTexture, transitionBgTexture, pauseBgTexture, leaderboardBgTexture, settingsBgTexture, uiAreaBgTexture,levelSelectBgTexture, gameoverBgTexture;
+    Sprite menuBg, transitionBg, pauseBg, leaderboardBg, settingsBg, uiAreaBg, levelSelectBg, gameoverBg;
     
     // Level system
     std::vector<Level> levels;

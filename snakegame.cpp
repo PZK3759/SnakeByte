@@ -28,6 +28,7 @@ SnakeGame::SnakeGame() : window(VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "SnakeBy
     settingsBgTexture.loadFromFile("assets/images/menu_bg.png");
     uiAreaBgTexture.loadFromFile("ui_area_bg.png");
     levelSelectBgTexture.loadFromFile("level_select_bg.png");
+    gameoverBgTexture.loadFromFile("assets/images/gameoverbg_2.png");
 
     menuBg.setTexture(menuBgTexture);
     transitionBg.setTexture(transitionBgTexture);
@@ -37,6 +38,7 @@ SnakeGame::SnakeGame() : window(VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "SnakeBy
     uiAreaBg.setTexture(uiAreaBgTexture);
     uiAreaBg.setTextureRect(IntRect(0, 0, WINDOW_WIDTH, UI_AREA_HEIGHT));
     levelSelectBg.setTexture(levelSelectBgTexture);
+    gameoverBg.setTexture(gameoverBgTexture);
     
     loadSettings();
     state = MAIN_MENU;
@@ -59,15 +61,16 @@ void SnakeGame::initializeLevels() {
     std::string music2 = "assets/audios/8bit_dash.ogg";
     std::string music3 = "assets/audios/arcade-speed-run.ogg";
     std::string bg1 = "assets/images/level1_bg.png";
+    std::string bg2 = "assets/images/levelbg_2.png";
     
-    Level level1(1, 20, "Level 1", music1, bg1, Color(0, 255, 0), 4.0f, true);
+    Level level1(1, 20, "Level 1", music1, bg2, Color(0, 255, 0), 4.0f, true);
     levels.push_back(level1);
     
-    Level level2(2, 50, "Level 2", music2, bg1, Color(255, 255, 0), 4.0f, true);
+    Level level2(2, 50, "Level 2", music2, bg2, Color(255, 255, 0), 4.0f, true);
     level2.setupDefaultObstacles(PLAYFIELD_START_ROW);
     levels.push_back(level2);
     
-    Level level3(3, -1, "Level 3", music3, bg1, Color(255, 100, 0), 5.0f, true);
+    Level level3(3, -1, "Level 3", music3, bg2, Color(255, 100, 0), 5.0f, true);
     level3.setupDefaultObstacles(PLAYFIELD_START_ROW);
     levels.push_back(level3);
 }
@@ -430,6 +433,7 @@ void SnakeGame::moveSnake() {
     }
     
     if (isFreePlay) {
+        speedMultiplier = 1.3f;
         if (newHead.x < 0) newHead.x = GRID_WIDTH - 1;
         if (newHead.x >= GRID_WIDTH) newHead.x = 0;
         if (newHead.y < PLAYFIELD_START_ROW) newHead.y = GRID_HEIGHT - 1;
@@ -562,9 +566,11 @@ void SnakeGame::renderMainMenu() {
         window.draw(menuBg);
     }
     
-    Text title("SNAKE_BYTE", font, 60);
+    Text title("SNAKEBYTE", font, 60);
     title.setFillColor(Color(75,44,107));
     title.setPosition(WINDOW_WIDTH / 2 - 150, 50);
+    title.setOutlineThickness(1);
+    title.setOutlineColor(Color::Black);
     window.draw(title);
     
     Text subtitle("Classic Snake Game", font, 20);
@@ -718,6 +724,8 @@ void SnakeGame::renderGame() {
     CircleShape foodCircle(GRID_SIZE / 2 - 2);
     foodCircle.setPosition(food.x * GRID_SIZE + 2, food.y * GRID_SIZE + 2);
     foodCircle.setFillColor(Color(226,0,53));
+    foodCircle.setOutlineThickness(1);
+    foodCircle.setOutlineColor(Color(48,48,48));
     window.draw(foodCircle);
     
     if (bonusFoodActive) {
@@ -726,6 +734,8 @@ void SnakeGame::renderGame() {
         CircleShape bonusFoodCircle(GRID_SIZE / 2 + 2);
         bonusFoodCircle.setScale(scale, scale);
         bonusFoodCircle.setFillColor(Color(196,204,4));
+        foodCircle.setOutlineThickness(1);
+        bonusFoodCircle.setOutlineColor(Color(48,48,48));
         bonusFoodCircle.setOrigin(GRID_SIZE / 2 + 2, GRID_SIZE / 2 + 2);
         bonusFoodCircle.setPosition(bonusFood.x * GRID_SIZE + GRID_SIZE / 2, 
                                     bonusFood.y * GRID_SIZE + GRID_SIZE / 2);
@@ -818,19 +828,19 @@ void SnakeGame::renderLevelTransition() {
     scoreText.setPosition(WINDOW_WIDTH / 2 - 100, 250);
     window.draw(scoreText);
     
-    Text nextText("Advancing to Level " + std::to_string(levels[nextLevelIndex].levelNumber), font, 35);
-    nextText.setFillColor(Color::Yellow);
-    nextText.setPosition(WINDOW_WIDTH / 2 - 180, 350);
-    window.draw(nextText);
+    // Text nextText("Advancing to Level " + std::to_string(levels[nextLevelIndex].levelNumber), font, 35);
+    // nextText.setFillColor(Color::Yellow);
+    // nextText.setPosition(WINDOW_WIDTH / 2 - 180, 350);
+    // window.draw(nextText);
     
-    Text resetInfo("Snake reset to default size and speed", font, 20);
-    resetInfo.setFillColor(Color(150, 200, 150));
-    resetInfo.setPosition(WINDOW_WIDTH / 2 - 180, 400);
-    window.draw(resetInfo);
+    // Text resetInfo("Snake reset to default size and speed", font, 20);
+    // resetInfo.setFillColor(Color(150, 200, 150));
+    // resetInfo.setPosition(WINDOW_WIDTH / 2 - 180, 400);
+    // window.draw(resetInfo);
     
     Text hint("Press Space or Enter to continue...", font, 22);
     hint.setFillColor(Color::White);
-    hint.setPosition(WINDOW_WIDTH / 2 - 130, 480);
+    hint.setPosition(WINDOW_WIDTH / 2 - 150, 480);
     window.draw(hint);
 }
 
@@ -866,30 +876,37 @@ void SnakeGame::renderPauseOverlay() {
 }
 
 void SnakeGame::renderGameOver() {
+
+    if (gameoverBgTexture.getSize().x > 0) {
+        window.draw(gameoverBg);
+    }
+
     Text title("GAME OVER", font, 50);
     title.setFillColor(Color::Red);
-    title.setPosition(WINDOW_WIDTH / 2 - 150, 150);
+    title.setOutlineThickness(1);
+    title.setOutlineColor(Color::Black);
+    title.setPosition(WINDOW_WIDTH / 2 - 150, 200);
     window.draw(title);
     
     Text scoreText("Final Score: " + std::to_string(score), font, 30);
     scoreText.setFillColor(Color::White);
-    scoreText.setPosition(WINDOW_WIDTH / 2 - 120, 230);
+    scoreText.setPosition(WINDOW_WIDTH / 2 - 120, 280);
     window.draw(scoreText);
     
     if (enteringName) {
         Text prompt("Enter your name:", font, 25);
         prompt.setFillColor(Color::Yellow);
-        prompt.setPosition(WINDOW_WIDTH / 2 - 120, 300);
+        prompt.setPosition(WINDOW_WIDTH / 2 - 120, 330);
         window.draw(prompt);
         
         Text nameText(playerName + "_", font, 30);
         nameText.setFillColor(Color::White);
-        nameText.setPosition(WINDOW_WIDTH / 2 - 100, 340);
+        nameText.setPosition(WINDOW_WIDTH / 2 - 100, 370);
         window.draw(nameText);
     } else {
         Text back("Press ESC to return to menu", font, 20);
         back.setFillColor(Color(150, 150, 150));
-        back.setPosition(WINDOW_WIDTH / 2 - 150, 400);
+        back.setPosition(WINDOW_WIDTH / 2 - 150, 500);
         window.draw(back);
     }
 }
