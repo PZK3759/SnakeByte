@@ -22,11 +22,11 @@ SnakeGame::SnakeGame() : window(VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "SnakeBy
     
     // Load background images
     menuBgTexture.loadFromFile("assets/images/menu_bg.png");
-    transitionBgTexture.loadFromFile("transition_bg.png");
+    transitionBgTexture.loadFromFile("assets/images/level_complete.png");
     pauseBgTexture.loadFromFile("pause_bg.png");
     leaderboardBgTexture.loadFromFile("assets/images/menu_bg.png");
     settingsBgTexture.loadFromFile("assets/images/menu_bg.png");
-    uiAreaBgTexture.loadFromFile("ui_area_bg.png");
+    uiAreaBgTexture.loadFromFile("assets/images/score_ui.png");
     levelSelectBgTexture.loadFromFile("level_select_bg.png");
     gameoverBgTexture.loadFromFile("assets/images/gameoverbg_2.png");
 
@@ -567,6 +567,7 @@ void SnakeGame::renderMainMenu() {
     }
     
     Text title("SNAKEBYTE", font, 60);
+    title.setStyle(Text::Bold);
     title.setFillColor(Color(75,44,107));
     title.setPosition(WINDOW_WIDTH / 2 - 150, 50);
     title.setOutlineThickness(1);
@@ -794,22 +795,30 @@ void SnakeGame::renderGame() {
     
     Text scoreText("Score: " + std::to_string(score), font, 20);
     scoreText.setFillColor(Color::White);
+    scoreText.setOutlineThickness(1);
+    scoreText.setOutlineColor(Color::Black);
     scoreText.setPosition(10, 10);
     window.draw(scoreText);
     
     Text multText("x" + std::to_string(scoreMultiplier).substr(0, 4), font, 20);
     multText.setFillColor(Color::Yellow);
+    multText.setOutlineThickness(1);
+    multText.setOutlineColor(Color::Black);
     multText.setPosition(10, 35);
     window.draw(multText);
     
     if (!isFreePlay) {
         Text levelText("Level: " + std::to_string(getCurrentLevel().levelNumber), font, 20);
         levelText.setFillColor(Color::White);
+        levelText.setOutlineThickness(1);
+        levelText.setOutlineColor(Color::Black);
         levelText.setPosition(WINDOW_WIDTH - 120, 10);
         window.draw(levelText);
     } else {
         Text modeText("Free Play", font, 20);
         modeText.setFillColor(Color::White);
+        modeText.setOutlineThickness(1);
+        modeText.setOutlineColor(Color::Black);
         modeText.setPosition(WINDOW_WIDTH - 120, 10);
         window.draw(modeText);
     }
@@ -820,11 +829,16 @@ void SnakeGame::renderLevelTransition() {
     
     Text title("LEVEL " + std::to_string(levels[currentLevelIndex].levelNumber) + " COMPLETE!", font, 50);
     title.setFillColor(Color::Green);
-    title.setPosition(WINDOW_WIDTH / 2 - 250, 150);
+    title.setStyle(Text::Bold);
+    title.setOutlineThickness(1);
+    title.setOutlineColor(Color::Black);
+    title.setPosition(WINDOW_WIDTH / 2 - 250, 125);
     window.draw(title);
     
     Text scoreText("Score: " + std::to_string(score), font, 40);
     scoreText.setFillColor(Color::White);
+    scoreText.setOutlineThickness(1);
+    scoreText.setOutlineColor(Color::Black);
     scoreText.setPosition(WINDOW_WIDTH / 2 - 100, 250);
     window.draw(scoreText);
     
@@ -839,7 +853,7 @@ void SnakeGame::renderLevelTransition() {
     // window.draw(resetInfo);
     
     Text hint("Press Space or Enter to continue...", font, 22);
-    hint.setFillColor(Color::White);
+    hint.setFillColor(Color(48,48,48));
     hint.setPosition(WINDOW_WIDTH / 2 - 150, 480);
     window.draw(hint);
 }
@@ -856,6 +870,9 @@ void SnakeGame::renderPauseOverlay() {
     
     Text title("GAME PAUSED", font, 60);
     title.setFillColor(Color::Yellow);
+    title.setStyle(Text::Bold);
+    title.setOutlineThickness(1);
+    title.setOutlineColor(Color::Black);
     title.setPosition(WINDOW_WIDTH / 2 - 180, 200);
     window.draw(title);
     
@@ -883,6 +900,7 @@ void SnakeGame::renderGameOver() {
 
     Text title("GAME OVER", font, 50);
     title.setFillColor(Color::Red);
+    title.setStyle(Text::Bold);
     title.setOutlineThickness(1);
     title.setOutlineColor(Color::Black);
     title.setPosition(WINDOW_WIDTH / 2 - 150, 200);
@@ -916,6 +934,9 @@ void SnakeGame::renderLeaderboard() {
     
     Text title("LEADERBOARD", font, 50);
     title.setFillColor(Color::Yellow);
+    title.setStyle(Text::Bold);
+    title.setOutlineThickness(1);
+    title.setOutlineColor(Color::Black);
     title.setPosition(WINDOW_WIDTH / 2 - 180, 50);
     window.draw(title);
     
@@ -930,7 +951,7 @@ void SnakeGame::renderLeaderboard() {
     }
     window.draw(normalTab);
     
-    Text normalText("Normal Play", font, 20);
+    Text normalText("Quest", font, 20);
     normalText.setFillColor(Color::White);
     normalText.setPosition(220, 130);
     window.draw(normalText);
@@ -972,6 +993,9 @@ void SnakeGame::renderSettings() {
     
     Text title("SETTINGS", font, 50);
     title.setFillColor(Color::Cyan);
+    title.setStyle(Text::Bold);
+    title.setOutlineThickness(1);
+    title.setOutlineColor(Color::Black);
     title.setPosition(WINDOW_WIDTH / 2 - 120, 100);
     window.draw(title);
     
