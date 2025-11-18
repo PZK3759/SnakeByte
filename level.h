@@ -37,7 +37,7 @@ public:
     void clearObstacles();
     
     // Setup default obstacles for each level
-    void setupDefaultObstacles(int playfieldStartRow);
+    void setupDefaultObstacles(int PLAYFIELD_START_ROW);
     
     // Check if obstacle exists at position
     bool isObstacleAt(int x, int y) const;

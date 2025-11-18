@@ -519,7 +519,7 @@ void SnakeGame::gameOver() {
     currentBgMusic.stop();
     
     // Don't add to leaderboard if in level select mode
-    if (!isLevelSelectMode) {  // NEW CHECK
+    if (!isLevelSelectMode) { 
         auto& targetLeaderboard = isFreePlay ? freePlayLeaderboard : leaderboard;
         
         if (score > 0 && (targetLeaderboard.size() < 5 || score > targetLeaderboard.back().second)) {
@@ -562,30 +562,30 @@ void SnakeGame::renderMainMenu() {
         window.draw(menuBg);
     }
     
-    Text title("SNAKEBYTE", font, 60);
-    title.setFillColor(Color::Green);
+    Text title("SNAKE_BYTE", font, 60);
+    title.setFillColor(Color(75,44,107));
     title.setPosition(WINDOW_WIDTH / 2 - 150, 50);
     window.draw(title);
     
     Text subtitle("Classic Snake Game", font, 20);
-    subtitle.setFillColor(Color(150, 150, 150));
-    subtitle.setPosition(WINDOW_WIDTH / 2 - 100, 130);
+    subtitle.setFillColor(Color(117, 128, 103));
+    subtitle.setPosition(WINDOW_WIDTH / 2 - 140, 130);
     window.draw(subtitle);
     
     std::vector<std::string> options = {
-        "1. Play Levels (Press 1 or P)",
-        "2. Free Play (Press 2 or F)",
-        "3. Level Select (Press 3 or V)",
-        "4. Leaderboard (Press 4 or L)",
-        "5. Settings (Press 5 or S)",
-        "0. Exit (Press 0 or Q)"
+        "1. Play Quest",
+        "2. Free Play",
+        "3. Select Levels",
+        "4. Leaderboard",
+        "5. Settings",
+        "0. Exit"
     };
     
     Vector2i mousePos = Mouse::getPosition(window);
     
     for (size_t i = 0; i < options.size(); i++) {
-        Text option(options[i], font, 22);  // Slightly smaller font
-        int yPos = 200 + i * 55;  // More spacing between options
+        Text option(options[i], font, 22);  
+        int yPos = 200 + i * 55;  
         
         if (mousePos.x >= 200 && mousePos.x <= 600 && 
             mousePos.y >= yPos && mousePos.y <= yPos + 45) {
@@ -594,7 +594,7 @@ void SnakeGame::renderMainMenu() {
             option.setFillColor(Color::White);
         }
         
-        option.setPosition(200, yPos);  // Align to left for consistency
+        option.setPosition(200, yPos); 
         window.draw(option);
     }
     
