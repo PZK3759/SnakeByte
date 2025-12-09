@@ -52,6 +52,17 @@ SnakeGame::SnakeGame() : window(VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "SnakeBy
     loadLeaderboard();
     initAudio();
     bonusFoodSpawnTimer.restart();
+    speedBoostFoodSpawnTimer.restart();
+    shrinkFoodSpawnTimer.restart();
+    slowDownFoodSpawnTimer.restart();
+
+    bonusFoodActive = false;
+    speedBoostFoodActive = false;
+    shrinkFoodActive = false;
+    slowDownFoodActive = false;
+
+    speedBoostActive = false;
+    slowDownActive = false;
 }
 
 void SnakeGame::initializeLevels() {
@@ -63,10 +74,10 @@ void SnakeGame::initializeLevels() {
     std::string bg1 = "assets/images/level1_bg.png";
     std::string bg2 = "assets/images/levelbg_2.png";
     
-    Level level1(1, 30, "Level 1", music1, bg2, Color(0, 255, 0), 4.0f, true);
+    Level level1(1, 70, "Level 1", music1, bg2, Color(0, 255, 0), 4.0f, true);
     levels.push_back(level1);
     
-    Level level2(2, 60, "Level 2", music2, bg2, Color(255, 255, 0), 4.0f, true);
+    Level level2(2, 150, "Level 2", music2, bg2, Color(255, 255, 0), 4.0f, true);
     level2.setupDefaultObstacles(PLAYFIELD_START_ROW);
     levels.push_back(level2);
     
@@ -133,9 +144,18 @@ void SnakeGame::resetLevel() {
     speedMultiplier = 1.0f;
     consecutiveActive = false;
     bonusFoodActive = false;
+    speedBoostFoodActive = false;
+    shrinkFoodActive = false;
+    slowDownFoodActive = false;
+    speedBoostActive = false;
+    slowDownActive = false;
     bonusFoodSpawnTimer.restart();
-    spawnFood(false);
+    speedBoostFoodSpawnTimer.restart();
+    shrinkFoodSpawnTimer.restart();
+    slowDownFoodSpawnTimer.restart();
+    spawnFood(NORMAL);
     gameClock.restart();
+    foodTimer.restart();
     moveInterval = 0.15f;
 }
 
@@ -146,23 +166,36 @@ Level& SnakeGame::getCurrentLevel() {
     return levels[currentLevelIndex];
 }
 
-void SnakeGame::spawnFood(bool bonus) {
-    int x, y;
+void SnakeGame::spawnFood(FoodType foodType) {
+        int x, y;
     bool valid;
-    Food* targetFood = bonus ? &bonusFood : &food;
+    
+    Food* targetFood;
+    
+    // Select which food to spawn
+    switch(foodType) {
+        case BONUS: targetFood = &bonusFood; break;
+        case SPEED_BOOST: targetFood = &speedBoostFood; break;
+        case SHRINK: targetFood = &shrinkFood; break;
+        case SLOW_DOWN: targetFood = &slowDownFood; break;
+        default: targetFood = &food; break;
+    }
     
     do {
         valid = true;
         x = rand() % GRID_WIDTH;
         y = PLAYFIELD_START_ROW + 1 + rand() % (PLAYFIELD_HEIGHT - 2);
         
+        // Check if inside border area
         if (!isFreePlay) {
-            if (x == 0 || x == GRID_WIDTH - 1 || y == PLAYFIELD_START_ROW || y == GRID_HEIGHT - 1) {
+            if (x == 0 || x == GRID_WIDTH - 1 || 
+                y == PLAYFIELD_START_ROW || y == GRID_HEIGHT - 1) {
                 valid = false;
                 continue;
             }
         }
         
+        // Check snake collision
         for (const auto& seg : snake) {
             if (seg.x == x && seg.y == y) {
                 valid = false;
@@ -170,27 +203,42 @@ void SnakeGame::spawnFood(bool bonus) {
             }
         }
         
+        // Check obstacle collision
         if (!isFreePlay && getCurrentLevel().isObstacleAt(x, y)) {
             valid = false;
         }
         
-        if (bonus && food.x == x && food.y == y) {
-            valid = false;
-        }
-        if (!bonus && bonusFoodActive && bonusFood.x == x && bonusFood.y == y) {
-            valid = false;
-        }
+        // Check collision with ALL foods
+        if (food.x == x && food.y == y) valid = false;
+        if (bonusFoodActive && bonusFood.x == x && bonusFood.y == y) valid = false;
+        if (speedBoostFoodActive && speedBoostFood.x == x && speedBoostFood.y == y) valid = false;
+        if (shrinkFoodActive && shrinkFood.x == x && shrinkFood.y == y) valid = false;
+        if (slowDownFoodActive && slowDownFood.x == x && slowDownFood.y == y) valid = false;
+        
     } while (!valid);
     
     targetFood->x = x;
     targetFood->y = y;
-    targetFood->isBonus = bonus;
+    targetFood->type = foodType;
     targetFood->spawnTimer.restart();
     
-    if (bonus) {
+    // Set active flags and durations
+    if (foodType == BONUS) {
         bonusFoodActive = true;
         bonusFoodDuration = 5.0f + (rand() % 3);
         bonusFoodTimer.restart();
+    } else if (foodType == SPEED_BOOST) {
+        speedBoostFoodActive = true;
+        speedBoostFoodDuration = 5.0f + (rand() % 3);
+        speedBoostFoodTimer.restart();
+    } else if (foodType == SHRINK) {
+        shrinkFoodActive = true;
+        shrinkFoodDuration = 5.0f + (rand() % 3);
+        shrinkFoodTimer.restart();
+    } else if (foodType == SLOW_DOWN) {
+        slowDownFoodActive = true;
+        slowDownFoodDuration = 5.0f + (rand() % 3);
+        slowDownFoodTimer.restart();
     }
 }
 
@@ -410,13 +458,54 @@ void SnakeGame::update() {
         moveSnake();
     }
     
+    // Spawn bonus food (every 15-25 seconds)
     if (!bonusFoodActive && bonusFoodSpawnTimer.getElapsedTime().asSeconds() >= 15.0f + (rand() % 10)) {
-        spawnFood(true);
+        spawnFood(BONUS);
         bonusFoodSpawnTimer.restart();
     }
     
+    // Spawn speed boost food (every 25-35 seconds)
+    if (!speedBoostFoodActive && speedBoostFoodSpawnTimer.getElapsedTime().asSeconds() >= 25.0f + (rand() % 10)) {
+        spawnFood(SPEED_BOOST);
+        speedBoostFoodSpawnTimer.restart();
+    }
+    
+    // Spawn shrink food (every 30-40 seconds)
+    if (!shrinkFoodActive && shrinkFoodSpawnTimer.getElapsedTime().asSeconds() >= 30.0f + (rand() % 10)) {
+        spawnFood(SHRINK);
+        shrinkFoodSpawnTimer.restart();
+    }
+    
+    // Spawn slow down food (every 35-45 seconds)
+    if (!slowDownFoodActive && slowDownFoodSpawnTimer.getElapsedTime().asSeconds() >= 35.0f + (rand() % 10)) {
+        spawnFood(SLOW_DOWN);
+        slowDownFoodSpawnTimer.restart();
+    }
+    
+    // Check food timeouts
     if (bonusFoodActive && bonusFoodTimer.getElapsedTime().asSeconds() >= bonusFoodDuration) {
         bonusFoodActive = false;
+    }
+    if (speedBoostFoodActive && speedBoostFoodTimer.getElapsedTime().asSeconds() >= speedBoostFoodDuration) {
+        speedBoostFoodActive = false;
+    }
+    if (shrinkFoodActive && shrinkFoodTimer.getElapsedTime().asSeconds() >= shrinkFoodDuration) {
+        shrinkFoodActive = false;
+    }
+    if (slowDownFoodActive && slowDownFoodTimer.getElapsedTime().asSeconds() >= slowDownFoodDuration) {
+        slowDownFoodActive = false;
+    }
+    
+    // Check speed boost effect timeout
+    if (speedBoostActive && speedBoostEffectTimer.getElapsedTime().asSeconds() >= speedBoostEffectDuration) {
+        speedBoostActive = false;
+        speedMultiplier = originalSpeedMultiplier;  // Restore original speed
+    }
+    
+    // Check slow down effect timeout
+    if (slowDownActive && slowDownEffectTimer.getElapsedTime().asSeconds() >= slowDownEffectDuration) {
+        slowDownActive = false;
+        speedMultiplier = originalSpeedMultiplier;  // Restore original speed
     }
     
     if (consecutiveActive && consecutiveTimer.getElapsedTime().asSeconds() >= 2.0f) {
@@ -463,25 +552,127 @@ void SnakeGame::moveSnake() {
     }
     
     bool ateFood = false;
-    
+
+    // Check normal food collision
     if (newHead.x == food.x && newHead.y == food.y) {
-        score += static_cast<int>(2 * scoreMultiplier);
-        if (soundEnabled) eatSound.play();
+        int points = 2;
+        score += static_cast<int>(points * scoreMultiplier);
+    
+        if (soundEnabled) {
+            eatSound.play();
+        }
+    
         updateMultipliers();
-        if (!isFreePlay) speedMultiplier += 0.1f;
-        spawnFood(false);
+    
+        if (!isFreePlay) {
+        speedMultiplier += 0.1f;
+        }
+    
+        spawnFood(NORMAL);
         ateFood = true;
+    
         checkLevelCompletion();
     }
-    
+
+    // Check bonus food collision (yellow)
     if (bonusFoodActive && newHead.x == bonusFood.x && newHead.y == bonusFood.y) {
-        score += static_cast<int>(10 * scoreMultiplier);
-        if (soundEnabled) bonusSound.play();
+        int points = 10;
+        score += static_cast<int>(points * scoreMultiplier);
+    
+        if (soundEnabled) {
+            bonusSound.play();
+        }
+    
         updateMultipliers();
-        if (!isFreePlay) speedMultiplier += 0.1f;
+    
+        if (!isFreePlay) {
+            speedMultiplier += 0.1f;
+        }
+    
         bonusFoodActive = false;
         bonusFoodSpawnTimer.restart();
         ateFood = true;
+    
+        checkLevelCompletion();
+    }
+
+    // Check speed boost food collision (purple)
+    if (speedBoostFoodActive && newHead.x == speedBoostFood.x && newHead.y == speedBoostFood.y) {
+        int points = 5;
+        score += static_cast<int>(points * scoreMultiplier);
+    
+        if (soundEnabled) {
+            bonusSound.play();
+        }
+    
+        updateMultipliers();
+    
+        // Activate speed boost
+        if (!speedBoostActive) {
+            originalSpeedMultiplier = speedMultiplier;
+        }
+        speedBoostActive = true;
+        speedMultiplier = originalSpeedMultiplier * 1.5f;
+        speedBoostEffectDuration = 10.0f;
+        speedBoostEffectTimer.restart();
+    
+        speedBoostFoodActive = false;
+        speedBoostFoodSpawnTimer.restart();
+        ateFood = true;
+    
+        checkLevelCompletion();
+    }
+
+    // Check shrink food collision (green)
+    if (shrinkFoodActive && newHead.x == shrinkFood.x && newHead.y == shrinkFood.y) {
+        int points = 8;
+        score += static_cast<int>(points * scoreMultiplier);
+    
+        if (soundEnabled) {
+            bonusSound.play();
+        }
+    
+        updateMultipliers();
+    
+        // Shrink snake by 30%
+        int removeCount = snake.size() * 0.3f;
+        if (removeCount > 0 && snake.size() > 3) {  // Keep at least 3 segments
+            for (int i = 0; i < removeCount && snake.size() > 3; i++) {
+                snake.pop_back();
+            }
+        }
+    
+        shrinkFoodActive = false;
+        shrinkFoodSpawnTimer.restart();
+        ateFood = true;
+    
+        checkLevelCompletion();
+    }
+
+    // Check slow down food collision (black)
+    if (slowDownFoodActive && newHead.x == slowDownFood.x && newHead.y == slowDownFood.y) {
+        int points = 3;
+        score += static_cast<int>(points * scoreMultiplier);
+    
+        if (soundEnabled) {
+            eatSound.play();
+        }
+    
+        updateMultipliers();
+    
+        // Activate slow down
+        if (!slowDownActive) {
+            originalSpeedMultiplier = speedMultiplier;
+        }
+        slowDownActive = true;
+        speedMultiplier = originalSpeedMultiplier * 0.5f;
+        slowDownEffectDuration = 10.0f;
+        slowDownEffectTimer.restart();
+    
+        slowDownFoodActive = false;
+        slowDownFoodSpawnTimer.restart();
+        ateFood = true;
+    
         checkLevelCompletion();
     }
     
@@ -726,25 +917,72 @@ void SnakeGame::renderGame() {
         }
     }
     
+    float normalPulseTime = foodTimer.getElapsedTime().asSeconds();
+    float normalScale = 1.0f + 0.15f * sin(normalPulseTime * 4.0f);
+
     CircleShape foodCircle(GRID_SIZE / 2 - 2);
-    foodCircle.setPosition(food.x * GRID_SIZE + 2, food.y * GRID_SIZE + 2);
-    foodCircle.setFillColor(Color(226,0,53));
-    foodCircle.setOutlineThickness(1);
-    foodCircle.setOutlineColor(Color(48,48,48));
+    foodCircle.setScale(normalScale, normalScale);
+    foodCircle.setOrigin(GRID_SIZE / 2 - 2, GRID_SIZE / 2 - 2);
+    foodCircle.setPosition(food.x * GRID_SIZE + GRID_SIZE / 2, food.y * GRID_SIZE + GRID_SIZE / 2);
+    foodCircle.setFillColor(Color::Red);
     window.draw(foodCircle);
-    
+
+    // Draw bonus food (yellow) with pulse animation
     if (bonusFoodActive) {
         float pulseTime = bonusFoodTimer.getElapsedTime().asSeconds();
         float scale = 1.0f + 0.2f * sin(pulseTime * 6.0f);
+    
         CircleShape bonusFoodCircle(GRID_SIZE / 2 + 2);
         bonusFoodCircle.setScale(scale, scale);
-        bonusFoodCircle.setFillColor(Color(196,204,4));
-        foodCircle.setOutlineThickness(1);
-        bonusFoodCircle.setOutlineColor(Color(48,48,48));
+        bonusFoodCircle.setFillColor(Color::Yellow);
         bonusFoodCircle.setOrigin(GRID_SIZE / 2 + 2, GRID_SIZE / 2 + 2);
         bonusFoodCircle.setPosition(bonusFood.x * GRID_SIZE + GRID_SIZE / 2, 
-                                    bonusFood.y * GRID_SIZE + GRID_SIZE / 2);
+                                bonusFood.y * GRID_SIZE + GRID_SIZE / 2);
         window.draw(bonusFoodCircle);
+    }
+
+    // Draw speed boost food (purple) with pulse animation
+    if (speedBoostFoodActive) {
+        float pulseTime = speedBoostFoodTimer.getElapsedTime().asSeconds();
+        float scale = 1.0f + 0.2f * sin(pulseTime * 6.0f);
+    
+        CircleShape speedBoostCircle(GRID_SIZE / 2 + 2);
+        speedBoostCircle.setScale(scale, scale);
+        speedBoostCircle.setFillColor(Color(128, 0, 128));  // Purple
+        speedBoostCircle.setOrigin(GRID_SIZE / 2 + 2, GRID_SIZE / 2 + 2);
+        speedBoostCircle.setPosition(speedBoostFood.x * GRID_SIZE + GRID_SIZE / 2, 
+                                 speedBoostFood.y * GRID_SIZE + GRID_SIZE / 2);
+        window.draw(speedBoostCircle);
+    }
+
+    // Draw shrink food (green) with pulse animation
+    if (shrinkFoodActive) {
+        float pulseTime = shrinkFoodTimer.getElapsedTime().asSeconds();
+        float scale = 1.0f + 0.2f * sin(pulseTime * 6.0f);
+    
+        CircleShape shrinkCircle(GRID_SIZE / 2 + 2);
+        shrinkCircle.setScale(scale, scale);
+        shrinkCircle.setFillColor(Color(0, 255, 100));  // Bright green
+        shrinkCircle.setOrigin(GRID_SIZE / 2 + 2, GRID_SIZE / 2 + 2);
+        shrinkCircle.setPosition(shrinkFood.x * GRID_SIZE + GRID_SIZE / 2, 
+                            shrinkFood.y * GRID_SIZE + GRID_SIZE / 2);
+        window.draw(shrinkCircle);
+    }
+
+    // Draw slow down food (black) with pulse animation
+    if (slowDownFoodActive) {
+        float pulseTime = slowDownFoodTimer.getElapsedTime().asSeconds();
+        float scale = 1.0f + 0.2f * sin(pulseTime * 6.0f);
+    
+        CircleShape slowDownCircle(GRID_SIZE / 2 + 2);
+        slowDownCircle.setScale(scale, scale);
+        slowDownCircle.setFillColor(Color(50, 50, 50));  // Dark gray
+        slowDownCircle.setOutlineColor(Color::White);
+        slowDownCircle.setOutlineThickness(1);
+        slowDownCircle.setOrigin(GRID_SIZE / 2 + 2, GRID_SIZE / 2 + 2);
+        slowDownCircle.setPosition(slowDownFood.x * GRID_SIZE + GRID_SIZE / 2, 
+                               slowDownFood.y * GRID_SIZE + GRID_SIZE / 2);
+        window.draw(slowDownCircle);
     }
     
     for (size_t i = 0; i < snake.size(); i++) {

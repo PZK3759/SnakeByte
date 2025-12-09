@@ -25,6 +25,7 @@ const int UI_AREA_HEIGHT = UI_ROWS * GRID_SIZE;
 // Enums
 enum Direction { UP, DOWN, LEFT, RIGHT };
 enum GameState { MAIN_MENU, PLAYING, GAME_OVER, LEADERBOARD, SETTINGS, LEVEL_TRANSITION, PAUSED, LEVEL_SELECT };
+enum FoodType { NORMAL, BONUS, SPEED_BOOST, SHRINK, SLOW_DOWN };
 
 // Structures
 struct SnakeSegment {
@@ -33,7 +34,7 @@ struct SnakeSegment {
 
 struct Food {
     int x, y;
-    bool isBonus;
+    FoodType type;
     Clock spawnTimer;
 };
 
@@ -68,12 +69,38 @@ private:
     // Food
     Food food;
     Food bonusFood;
+    Food speedBoostFood;
+    Food shrinkFood;
+    Food slowDownFood;
     Clock foodTimer;
     bool bonusFoodActive;
+    bool speedBoostFoodActive;
+    bool shrinkFoodActive;
+    bool slowDownFoodActive;
     Clock bonusFoodTimer;
+    Clock speedBoostFoodTimer;
+    Clock shrinkFoodTimer;
+    Clock slowDownFoodTimer;
     Clock bonusFoodSpawnTimer;
+    Clock speedBoostFoodSpawnTimer;
+    Clock shrinkFoodSpawnTimer;
+    Clock slowDownFoodSpawnTimer;
     float bonusFoodDuration;
+    float speedBoostFoodDuration;
+    float shrinkFoodDuration;
+    float slowDownFoodDuration;
+
+    // Speed boost effect
+    bool speedBoostActive;
+    Clock speedBoostEffectTimer;
+    float speedBoostEffectDuration;
+    float originalSpeedMultiplier;
     
+    // Slow down effect
+    bool slowDownActive;
+    Clock slowDownEffectTimer;
+    float slowDownEffectDuration;
+
     // Scoring
     int score;
     float scoreMultiplier;
@@ -111,7 +138,7 @@ private:
     void playBgMusic();
     void resetLevel();
     Level& getCurrentLevel();
-    void spawnFood(bool bonus);
+    void spawnFood(FoodType foodType);
     void handleInput();
     void advanceToNextLevel();
     void handleMenuInput(Event& event);
