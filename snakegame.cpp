@@ -212,6 +212,9 @@ void SnakeGame::handleInput() {
             if (event.type == Event::KeyPressed) {
                 if(event.key.code == Keyboard::Escape || event.key.code == Keyboard::P || event.key.code == Keyboard::Space){
                     state = previousState;
+                    if (soundEnabled) {
+                        currentBgMusic.play();  // NEW: Resume music
+                    }
                 } else if(event.key.code == Keyboard::Q){
                     state = MAIN_MENU;
                     currentBgMusic.stop();
@@ -356,6 +359,7 @@ void SnakeGame::handleGameInput(Event& event) {
         } else if (event.key.code == Keyboard::Escape || event.key.code == Keyboard::P || event.key.code == Keyboard::Space) {
             previousState = PLAYING;
             state = PAUSED;
+            currentBgMusic.pause();
         }
     }
 }
