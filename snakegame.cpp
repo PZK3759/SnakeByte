@@ -63,6 +63,8 @@ SnakeGame::SnakeGame() : window(VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "SnakeBy
 
     speedBoostActive = false;
     slowDownActive = false;
+
+    showEffectText = false;
 }
 
 void SnakeGame::initializeLevels() {
@@ -92,12 +94,18 @@ void SnakeGame::initAudio() {
     collisionBuffer.loadFromFile("collision.wav");
     gameOverBuffer.loadFromFile("assets/audios/sound-effects/gameover2.wav");
     levelCompleteBuffer.loadFromFile("assets/audios/sound-effects/levelcomplete2.wav");
+    speedBoostBuffer.loadFromFile("speedboost.wav");
+    shrinkBuffer.loadFromFile("shrink.wav");
+    slowDownBuffer.loadFromFile("slowdown.wav");
     
     eatSound.setBuffer(eatBuffer);
     bonusSound.setBuffer(bonusBuffer);
     collisionSound.setBuffer(collisionBuffer);
     gameOverSound.setBuffer(gameOverBuffer);
     levelCompleteSound.setBuffer(levelCompleteBuffer);
+    speedBoostSound.setBuffer(speedBoostBuffer);
+    shrinkSound.setBuffer(shrinkBuffer);
+    slowDownSound.setBuffer(slowDownBuffer); 
 }
 
 void SnakeGame::startGame(bool freePlay) {
@@ -458,6 +466,11 @@ void SnakeGame::update() {
         moveSnake();
     }
     
+    // Hide effect popup after 3 seconds
+    if (showEffectText && effectTextTimer.getElapsedTime().asSeconds() >= 3.0f) {
+        showEffectText = false;
+    }
+
     // Spawn bonus food (every 15-25 seconds)
     if (!bonusFoodActive && bonusFoodSpawnTimer.getElapsedTime().asSeconds() >= 15.0f + (rand() % 10)) {
         spawnFood(BONUS);
@@ -598,14 +611,14 @@ void SnakeGame::moveSnake() {
 
     // Check speed boost food collision (purple)
     if (speedBoostFoodActive && newHead.x == speedBoostFood.x && newHead.y == speedBoostFood.y) {
-        int points = 5;
-        score += static_cast<int>(points * scoreMultiplier);
+        // int points = 5;
+        // score += static_cast<int>(points * scoreMultiplier);
     
         if (soundEnabled) {
-            bonusSound.play();
+            speedBoostSound.play();
         }
     
-        updateMultipliers();
+        // updateMultipliers();
     
         // Activate speed boost
         if (!speedBoostActive) {
@@ -615,6 +628,11 @@ void SnakeGame::moveSnake() {
         speedMultiplier = originalSpeedMultiplier * 1.5f;
         speedBoostEffectDuration = 10.0f;
         speedBoostEffectTimer.restart();
+
+        // Show effect popup
+        activeEffectText = "SPEED BOOST ACTIVATED!";
+        showEffectText = true;                        
+        effectTextTimer.restart(); 
     
         speedBoostFoodActive = false;
         speedBoostFoodSpawnTimer.restart();
@@ -625,23 +643,28 @@ void SnakeGame::moveSnake() {
 
     // Check shrink food collision (green)
     if (shrinkFoodActive && newHead.x == shrinkFood.x && newHead.y == shrinkFood.y) {
-        int points = 8;
-        score += static_cast<int>(points * scoreMultiplier);
+        // int points = 8;
+        // score += static_cast<int>(points * scoreMultiplier);
     
         if (soundEnabled) {
-            bonusSound.play();
+            shrinkSound.play();
         }
     
-        updateMultipliers();
+        // updateMultipliers();
     
-        // Shrink snake by 30%
-        int removeCount = snake.size() * 0.3f;
+        // Shrink snake by 40% (needs adjusting)
+        int removeCount = snake.size() * 0.4f;
         if (removeCount > 0 && snake.size() > 3) {  // Keep at least 3 segments
             for (int i = 0; i < removeCount && snake.size() > 3; i++) {
                 snake.pop_back();
             }
         }
-    
+
+        //show effect popup
+        activeEffectText = "SNAKE SHRANK!"; 
+        showEffectText = true;
+        effectTextTimer.restart();
+
         shrinkFoodActive = false;
         shrinkFoodSpawnTimer.restart();
         ateFood = true;
@@ -651,14 +674,14 @@ void SnakeGame::moveSnake() {
 
     // Check slow down food collision (black)
     if (slowDownFoodActive && newHead.x == slowDownFood.x && newHead.y == slowDownFood.y) {
-        int points = 3;
-        score += static_cast<int>(points * scoreMultiplier);
+        // int points = 3;
+        // score += static_cast<int>(points * scoreMultiplier);
     
         if (soundEnabled) {
-            eatSound.play();
+            slowDownSound.play();
         }
     
-        updateMultipliers();
+        // updateMultipliers();
     
         // Activate slow down
         if (!slowDownActive) {
@@ -668,7 +691,12 @@ void SnakeGame::moveSnake() {
         speedMultiplier = originalSpeedMultiplier * 0.5f;
         slowDownEffectDuration = 10.0f;
         slowDownEffectTimer.restart();
-    
+        
+        // Show effect popup
+        activeEffectText = "SLOWED DOWN!";  
+        showEffectText = true;            
+        effectTextTimer.restart(); 
+
         slowDownFoodActive = false;
         slowDownFoodSpawnTimer.restart();
         ateFood = true;
@@ -1057,13 +1085,40 @@ void SnakeGame::renderGame() {
         levelText.setPosition(WINDOW_WIDTH - 120, 10);
         window.draw(levelText);
     } else {
-        Text modeText("Free Play", font, 20);
+        Text modeText("Survival", font, 20);
         modeText.setFillColor(Color::White);
         modeText.setOutlineThickness(1);
         modeText.setOutlineColor(Color::Black);
         modeText.setPosition(WINDOW_WIDTH - 120, 10);
         window.draw(modeText);
     }
+
+    int timerYPos = 35;
+    if (speedBoostActive) {
+        int remainingTime = (int)(speedBoostEffectDuration - speedBoostEffectTimer.getElapsedTime().asSeconds());
+        if (remainingTime < 0) remainingTime = 0;
+        
+        Text speedBoostTimer("Speed Boost: " + std::to_string(remainingTime) + " sec", font, 18);
+        speedBoostTimer.setFillColor(Color::White);
+        speedBoostTimer.setOutlineThickness(1);
+        speedBoostTimer.setOutlineColor(Color::Black);
+        speedBoostTimer.setPosition(WINDOW_WIDTH - 160, timerYPos);
+        window.draw(speedBoostTimer);
+        timerYPos += 25;
+    }
+    
+    if (slowDownActive) {
+        int remainingTime = (int)(slowDownEffectDuration - slowDownEffectTimer.getElapsedTime().asSeconds());
+        if (remainingTime < 0) remainingTime = 0;
+        
+        Text slowDownTimer("Slow Down: " + std::to_string(remainingTime) + " sec", font, 18);
+        slowDownTimer.setFillColor(Color::White);
+        slowDownTimer.setOutlineThickness(1);
+        slowDownTimer.setOutlineColor(Color::Black);
+        slowDownTimer.setPosition(WINDOW_WIDTH - 160, timerYPos);
+        window.draw(slowDownTimer);
+    }
+
 }
 
 void SnakeGame::renderLevelTransition() {

@@ -101,6 +101,11 @@ private:
     Clock slowDownEffectTimer;
     float slowDownEffectDuration;
 
+    // Effect notifications
+    std::string activeEffectText;
+    Clock effectTextTimer;
+    bool showEffectText;
+
     // Scoring
     int score;
     float scoreMultiplier;
@@ -113,8 +118,8 @@ private:
     float moveInterval;
     
     // Audio
-    SoundBuffer eatBuffer, bonusBuffer, collisionBuffer, gameOverBuffer, levelCompleteBuffer;
-    Sound eatSound, bonusSound, collisionSound, gameOverSound, levelCompleteSound;
+    SoundBuffer eatBuffer, bonusBuffer, collisionBuffer, gameOverBuffer, levelCompleteBuffer,speedBoostBuffer, shrinkBuffer, slowDownBuffer;
+    Sound eatSound, bonusSound, collisionSound, gameOverSound, levelCompleteSound, speedBoostSound, shrinkSound, slowDownSound;
     bool soundEnabled;
     
     // Leaderboard
