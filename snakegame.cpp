@@ -328,7 +328,7 @@ void SnakeGame::handleMenuInput(Event& event) {
         } else if (event.key.code == Keyboard::Num2 || event.key.code == Keyboard::F) {
             startGame(true);
         } else if (event.key.code == Keyboard::Num3 || event.key.code == Keyboard::V) {
-            state = LEVEL_SELECT;  // NEW
+            state = LEVEL_SELECT; 
         } else if (event.key.code == Keyboard::Num4 || event.key.code == Keyboard::L) {
             state = LEADERBOARD;
         } else if (event.key.code == Keyboard::Num5 || event.key.code == Keyboard::S) {
@@ -512,13 +512,22 @@ void SnakeGame::update() {
     // Check speed boost effect timeout
     if (speedBoostActive && speedBoostEffectTimer.getElapsedTime().asSeconds() >= speedBoostEffectDuration) {
         speedBoostActive = false;
-        speedMultiplier = originalSpeedMultiplier;  // Restore original speed
+        if (isFreePlay) {
+            speedMultiplier = 1.3f;  // Reset to default in free play
+        } else {
+            speedMultiplier = originalSpeedMultiplier;  // Restore saved speed in levels
+        }
     }
     
     // Check slow down effect timeout
     if (slowDownActive && slowDownEffectTimer.getElapsedTime().asSeconds() >= slowDownEffectDuration) {
         slowDownActive = false;
-        speedMultiplier = originalSpeedMultiplier;  // Restore original speed
+        if (isFreePlay) {
+            speedMultiplier = 1.3f;  // Reset to default in free play
+        } else {
+            speedMultiplier = originalSpeedMultiplier;  // Restore saved speed in levels
+        }
+
     }
     
     if (consecutiveActive && consecutiveTimer.getElapsedTime().asSeconds() >= 2.0f) {
@@ -620,12 +629,24 @@ void SnakeGame::moveSnake() {
     
         // updateMultipliers();
     
-        // Activate speed boost
-        if (!speedBoostActive) {
+        
+        if (!speedBoostActive && !slowDownActive) {
             originalSpeedMultiplier = speedMultiplier;
         }
+    
+        // Cancel slow down if active
+        if (slowDownActive) {
+            slowDownActive = false;
+        }
+    
         speedBoostActive = true;
-        speedMultiplier = originalSpeedMultiplier * 1.5f;
+    
+        
+        if (isFreePlay) {
+            speedMultiplier = 2.0f;
+        } else {
+            speedMultiplier = originalSpeedMultiplier * 1.5f;
+        }
         speedBoostEffectDuration = 10.0f;
         speedBoostEffectTimer.restart();
 
@@ -686,11 +707,23 @@ void SnakeGame::moveSnake() {
         // updateMultipliers();
     
         // Activate slow down
-        if (!slowDownActive) {
+        if (!slowDownActive && !speedBoostActive) {
             originalSpeedMultiplier = speedMultiplier;
         }
+    
+        // Cancel speed boost if active
+        if (speedBoostActive) {
+            speedBoostActive = false;
+        }
+    
         slowDownActive = true;
-        speedMultiplier = originalSpeedMultiplier * 0.5f;
+    
+        
+        if (isFreePlay) {
+            speedMultiplier = 0.5f;
+        } else {
+            speedMultiplier = originalSpeedMultiplier * 0.5f;
+        }
         slowDownEffectDuration = 10.0f;
         slowDownEffectTimer.restart();
         
@@ -958,7 +991,7 @@ void SnakeGame::renderGame() {
     foodCircle.setFillColor(Color::Red);
     window.draw(foodCircle);
 
-    // Draw bonus food (yellow) with pulse animation
+    // Draw bonus food (yellow)
     if (bonusFoodActive) {
         float pulseTime = bonusFoodTimer.getElapsedTime().asSeconds();
         float scale = 1.0f + 0.2f * sin(pulseTime * 6.0f);
@@ -972,48 +1005,54 @@ void SnakeGame::renderGame() {
         window.draw(bonusFoodCircle);
     }
 
-    // Draw speed boost food (purple) with pulse animation
-    if (speedBoostFoodActive) {
-        float pulseTime = speedBoostFoodTimer.getElapsedTime().asSeconds();
-        float scale = 1.0f + 0.2f * sin(pulseTime * 6.0f);
+    // Draw speed boost food (purple)
+    if(!isFreePlay){
+        if (speedBoostFoodActive) {
+            float pulseTime = speedBoostFoodTimer.getElapsedTime().asSeconds();
+            float scale = 1.0f + 0.2f * sin(pulseTime * 6.0f);
     
-        CircleShape speedBoostCircle(GRID_SIZE / 2 + 2);
-        speedBoostCircle.setScale(scale, scale);
-        speedBoostCircle.setFillColor(Color(128, 0, 128));  // Purple
-        speedBoostCircle.setOrigin(GRID_SIZE / 2 + 2, GRID_SIZE / 2 + 2);
-        speedBoostCircle.setPosition(speedBoostFood.x * GRID_SIZE + GRID_SIZE / 2, 
+            CircleShape speedBoostCircle(GRID_SIZE / 2 + 2);
+            speedBoostCircle.setScale(scale, scale);
+            speedBoostCircle.setFillColor(Color(128, 0, 128));  // Purple
+            speedBoostCircle.setOrigin(GRID_SIZE / 2 + 2, GRID_SIZE / 2 + 2);
+            speedBoostCircle.setPosition(speedBoostFood.x * GRID_SIZE + GRID_SIZE / 2, 
                                  speedBoostFood.y * GRID_SIZE + GRID_SIZE / 2);
-        window.draw(speedBoostCircle);
+            window.draw(speedBoostCircle);
+        }
     }
 
-    // Draw shrink food (green) with pulse animation
-    if (shrinkFoodActive) {
-        float pulseTime = shrinkFoodTimer.getElapsedTime().asSeconds();
-        float scale = 1.0f + 0.2f * sin(pulseTime * 6.0f);
+    // Draw shrink food (green)
+    if(!isFreePlay){
+        if (shrinkFoodActive) {
+            float pulseTime = shrinkFoodTimer.getElapsedTime().asSeconds();
+            float scale = 1.0f + 0.2f * sin(pulseTime * 6.0f);
     
-        CircleShape shrinkCircle(GRID_SIZE / 2 + 2);
-        shrinkCircle.setScale(scale, scale);
-        shrinkCircle.setFillColor(Color(0, 255, 100));  // Bright green
-        shrinkCircle.setOrigin(GRID_SIZE / 2 + 2, GRID_SIZE / 2 + 2);
-        shrinkCircle.setPosition(shrinkFood.x * GRID_SIZE + GRID_SIZE / 2, 
+            CircleShape shrinkCircle(GRID_SIZE / 2 + 2);
+            shrinkCircle.setScale(scale, scale);
+            shrinkCircle.setFillColor(Color(0, 255, 100));  // Bright green
+            shrinkCircle.setOrigin(GRID_SIZE / 2 + 2, GRID_SIZE / 2 + 2);
+            shrinkCircle.setPosition(shrinkFood.x * GRID_SIZE + GRID_SIZE / 2, 
                             shrinkFood.y * GRID_SIZE + GRID_SIZE / 2);
-        window.draw(shrinkCircle);
+            window.draw(shrinkCircle);
+        }
     }
 
-    // Draw slow down food (black) with pulse animation
-    if (slowDownFoodActive) {
-        float pulseTime = slowDownFoodTimer.getElapsedTime().asSeconds();
-        float scale = 1.0f + 0.2f * sin(pulseTime * 6.0f);
+    // Draw slow down food (black)
+    if(!isFreePlay){
+        if (slowDownFoodActive) {
+            float pulseTime = slowDownFoodTimer.getElapsedTime().asSeconds();
+            float scale = 1.0f + 0.2f * sin(pulseTime * 6.0f);
     
-        CircleShape slowDownCircle(GRID_SIZE / 2 + 2);
-        slowDownCircle.setScale(scale, scale);
-        slowDownCircle.setFillColor(Color(50, 50, 50));  // Dark gray
-        slowDownCircle.setOutlineColor(Color::White);
-        slowDownCircle.setOutlineThickness(1);
-        slowDownCircle.setOrigin(GRID_SIZE / 2 + 2, GRID_SIZE / 2 + 2);
-        slowDownCircle.setPosition(slowDownFood.x * GRID_SIZE + GRID_SIZE / 2, 
+            CircleShape slowDownCircle(GRID_SIZE / 2 + 2);
+            slowDownCircle.setScale(scale, scale);
+            slowDownCircle.setFillColor(Color(50, 50, 50));  // Dark gray
+            slowDownCircle.setOutlineColor(Color::White);
+            slowDownCircle.setOutlineThickness(1);
+            slowDownCircle.setOrigin(GRID_SIZE / 2 + 2, GRID_SIZE / 2 + 2);
+            slowDownCircle.setPosition(slowDownFood.x * GRID_SIZE + GRID_SIZE / 2, 
                                slowDownFood.y * GRID_SIZE + GRID_SIZE / 2);
-        window.draw(slowDownCircle);
+            window.draw(slowDownCircle);
+        }
     }
     
     for (size_t i = 0; i < snake.size(); i++) {
