@@ -631,6 +631,7 @@ void SnakeGame::moveSnake() {
 
         // Show effect popup
         activeEffectText = "SPEED BOOST ACTIVATED!";
+        std::cout << "SPEED BOOST ACTIVATED!";
         showEffectText = true;                        
         effectTextTimer.restart(); 
     
@@ -661,7 +662,8 @@ void SnakeGame::moveSnake() {
         }
 
         //show effect popup
-        activeEffectText = "SNAKE SHRANK!"; 
+        activeEffectText = "SNAKE SHRANK!";
+        std::cout << "SNAKE SHRANK!\n";
         showEffectText = true;
         effectTextTimer.restart();
 
@@ -694,6 +696,7 @@ void SnakeGame::moveSnake() {
         
         // Show effect popup
         activeEffectText = "SLOWED DOWN!";  
+        std::cout << "SLOWED DOWN!";
         showEffectText = true;            
         effectTextTimer.restart(); 
 
@@ -804,7 +807,7 @@ void SnakeGame::renderMainMenu() {
     
     std::vector<std::string> options = {
         "1. Play Quest",
-        "2. Survival",
+        "2. Play Survival",
         "3. Select Levels",
         "4. Leaderboard",
         "5. Settings",
@@ -1117,6 +1120,21 @@ void SnakeGame::renderGame() {
         slowDownTimer.setOutlineColor(Color::Black);
         slowDownTimer.setPosition(WINDOW_WIDTH - 160, timerYPos);
         window.draw(slowDownTimer);
+    }
+
+    if (showEffectText) {
+        
+        Text effectPopup(activeEffectText, font, 15);
+        effectPopup.setFillColor(Color::Yellow);
+        effectPopup.setOutlineColor(Color::Black);
+        effectPopup.setOutlineThickness(1);
+        effectPopup.setStyle(Text::Bold);  
+        
+        // Center the text
+        FloatRect textBounds = effectPopup.getLocalBounds();
+        effectPopup.setPosition((WINDOW_WIDTH - textBounds.width) / 2, 
+                               WINDOW_HEIGHT / 2 - 125);
+        window.draw(effectPopup);
     }
 
 }
