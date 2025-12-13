@@ -94,9 +94,9 @@ void SnakeGame::initAudio() {
     collisionBuffer.loadFromFile("collision.wav");
     gameOverBuffer.loadFromFile("assets/audios/sound-effects/gameover2.wav");
     levelCompleteBuffer.loadFromFile("assets/audios/sound-effects/levelcomplete2.wav");
-    speedBoostBuffer.loadFromFile("speedboost.wav");
-    shrinkBuffer.loadFromFile("shrink.wav");
-    slowDownBuffer.loadFromFile("slowdown.wav");
+    speedBoostBuffer.loadFromFile("assets/audios/sound-effects/speedboost.wav");
+    shrinkBuffer.loadFromFile("assets/audios/sound-effects/scissors.wav");
+    slowDownBuffer.loadFromFile("assets/audios/sound-effects/slow down.wav");
     
     eatSound.setBuffer(eatBuffer);
     bonusSound.setBuffer(bonusBuffer);
