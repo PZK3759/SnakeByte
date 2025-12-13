@@ -58,3 +58,8 @@
 #my files
 *.pdf
 *.zip
+
+#MacOS Framework Files
+.md
+/Frameworks/**
+/.DS_Store
