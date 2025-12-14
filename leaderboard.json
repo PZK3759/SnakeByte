@@ -9,16 +9,16 @@
             "score": 146
         },
         {
+            "name": "Kenji",
+            "score": 116
+        },
+        {
             "name": "Zahin",
             "score": 98
         },
         {
             "name": "zahin",
             "score": 92
-        },
-        {
-            "name": "zahin",
-            "score": 52
         }
     ],
     "normal": [
@@ -36,11 +36,11 @@
         },
         {
             "name": "zahin",
-            "score": 94
+            "score": 101
         },
         {
-            "name": "Mosha",
-            "score": 82
+            "name": "zenn",
+            "score": 98
         }
     ]
 }

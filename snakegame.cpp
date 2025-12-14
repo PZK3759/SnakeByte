@@ -76,10 +76,10 @@ void SnakeGame::initializeLevels() {
     std::string bg1 = "assets/images/level1_bg.png";
     std::string bg2 = "assets/images/levelbg_2.png";
     
-    Level level1(1, 30, "Level 1", music1, bg2, Color(0, 255, 0), 4.0f, true);
+    Level level1(1, 60, "Level 1", music1, bg2, Color(0, 255, 0), 4.0f, true);
     levels.push_back(level1);
     
-    Level level2(2, 60, "Level 2", music2, bg2, Color(255, 255, 0), 4.0f, true);
+    Level level2(2, 120, "Level 2", music2, bg2, Color(255, 255, 0), 4.0f, true);
     level2.setupDefaultObstacles(PLAYFIELD_START_ROW);
     levels.push_back(level2);
     
