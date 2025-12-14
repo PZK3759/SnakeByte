@@ -24,7 +24,8 @@ const int UI_AREA_HEIGHT = UI_ROWS * GRID_SIZE;
 
 // Enums
 enum Direction { UP, DOWN, LEFT, RIGHT };
-enum GameState { MAIN_MENU, PLAYING, GAME_OVER, LEADERBOARD, SETTINGS, LEVEL_TRANSITION, PAUSED };
+enum GameState { MAIN_MENU, PLAYING, GAME_OVER, LEADERBOARD, SETTINGS, LEVEL_TRANSITION, PAUSED, LEVEL_SELECT };
+enum FoodType { NORMAL, BONUS, SPEED_BOOST, SHRINK, SLOW_DOWN };
 
 // Structures
 struct SnakeSegment {
@@ -33,7 +34,7 @@ struct SnakeSegment {
 
 struct Food {
     int x, y;
-    bool isBonus;
+    FoodType type;
     Clock spawnTimer;
 };
 
@@ -45,8 +46,8 @@ private:
     Font font;
     
     // Background textures and sprites
-    Texture menuBgTexture, transitionBgTexture, pauseBgTexture, leaderboardBgTexture, settingsBgTexture, uiAreaBgTexture;
-    Sprite menuBg, transitionBg, pauseBg, leaderboardBg, settingsBg, uiAreaBg;
+    Texture menuBgTexture, transitionBgTexture, pauseBgTexture, leaderboardBgTexture, settingsBgTexture, uiAreaBgTexture,levelSelectBgTexture, gameoverBgTexture;
+    Sprite menuBg, transitionBg, pauseBg, leaderboardBg, settingsBg, uiAreaBg, levelSelectBg, gameoverBg;
     
     // Level system
     std::vector<Level> levels;
@@ -58,6 +59,7 @@ private:
     // Game state
     GameState state;
     bool isFreePlay;
+    bool isLevelSelectMode;
     
     // Snake
     std::deque<SnakeSegment> snake;
@@ -67,12 +69,43 @@ private:
     // Food
     Food food;
     Food bonusFood;
+    Food speedBoostFood;
+    Food shrinkFood;
+    Food slowDownFood;
     Clock foodTimer;
     bool bonusFoodActive;
+    bool speedBoostFoodActive;
+    bool shrinkFoodActive;
+    bool slowDownFoodActive;
     Clock bonusFoodTimer;
+    Clock speedBoostFoodTimer;
+    Clock shrinkFoodTimer;
+    Clock slowDownFoodTimer;
     Clock bonusFoodSpawnTimer;
+    Clock speedBoostFoodSpawnTimer;
+    Clock shrinkFoodSpawnTimer;
+    Clock slowDownFoodSpawnTimer;
     float bonusFoodDuration;
+    float speedBoostFoodDuration;
+    float shrinkFoodDuration;
+    float slowDownFoodDuration;
+
+    // Speed boost effect
+    bool speedBoostActive;
+    Clock speedBoostEffectTimer;
+    float speedBoostEffectDuration;
+    float originalSpeedMultiplier;
     
+    // Slow down effect
+    bool slowDownActive;
+    Clock slowDownEffectTimer;
+    float slowDownEffectDuration;
+
+    // Effect notifications
+    std::string activeEffectText;
+    Clock effectTextTimer;
+    bool showEffectText;
+
     // Scoring
     int score;
     float scoreMultiplier;
@@ -85,8 +118,8 @@ private:
     float moveInterval;
     
     // Audio
-    SoundBuffer eatBuffer, bonusBuffer, collisionBuffer, gameOverBuffer, levelCompleteBuffer;
-    Sound eatSound, bonusSound, collisionSound, gameOverSound, levelCompleteSound;
+    SoundBuffer eatBuffer, bonusBuffer, collisionBuffer, gameOverBuffer, levelCompleteBuffer,speedBoostBuffer, shrinkBuffer, slowDownBuffer;
+    Sound eatSound, bonusSound, collisionSound, gameOverSound, levelCompleteSound, speedBoostSound, shrinkSound, slowDownSound;
     bool soundEnabled;
     
     // Leaderboard
@@ -110,12 +143,14 @@ private:
     void playBgMusic();
     void resetLevel();
     Level& getCurrentLevel();
-    void spawnFood(bool bonus);
+    void spawnFood(FoodType foodType);
     void handleInput();
     void advanceToNextLevel();
     void handleMenuInput(Event& event);
+    void handleLevelSelectInput(Event& event);
     void handleGameInput(Event& event);
     void handleNameInput(Event& event);
+    void startLevelFromSelect(int levelIndex);
     void update();
     void moveSnake();
     void updateMultipliers();
@@ -124,6 +159,7 @@ private:
     void gameOver();
     void render();
     void renderMainMenu();
+    void renderLevelSelect();
     void renderGame();
     void renderLevelTransition();
     void renderPauseOverlay();
@@ -137,13 +173,10 @@ private:
     void addToLeaderboard(const std::string& name, int newScore, bool isFreePlay);
 
 public:
-    // Constructor
-    SnakeGame();
     
+    SnakeGame();
     // Main game loop
     void run();
-    
-    // Public methods
     void startGame(bool freePlay);
 };
 
